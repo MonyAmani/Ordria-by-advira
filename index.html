@@ -543,7 +543,7 @@ function deleteCustomerFromStore(storeIdEnc,nameEnc){
   renderCustomers();
 }
 
-function renderCustomers(){renderCustomerStoreFilter();let q=(customerSearch.value||'').trim().toLowerCase(),m=groups();if(!customerStoreFilter){customerList.innerHTML='<p class="small">👆 اختاري متجرًا أولًا لعرض عميلاته.</p>';return;}let arr=Object.keys(m).filter(k=>String(m[k][0].storeId||'')===String(customerStoreFilter)&&String(m[k][0].name||'').toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>String(x.id)===String(o.storeId))||{name:'غير محدد'},t=a.reduce((x,y)=>x+(Number(y.price)||0)*(Number(y.qty||y.quantity||1)||1),0),pieces=a.reduce((x,y)=>x+(Number(y.qty||y.quantity||1)||1),0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${pieces} قطعة • <b>$${t.toFixed(2)}</b></div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="secondary" onclick="editCustomer('${encodeURIComponent(o.name)}')">✏️ تعديل الاسم</button><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button><button class="danger" onclick="deleteCustomerFromStore('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🗑️ حذف</button></div></div>`}).join(''):'<p class="small">لا توجد عميلات لهذا المتجر بهذا البحث.</p>'}
+function renderCustomers(){renderCustomerStoreFilter();let q=(customerSearch.value||'').trim().toLowerCase(),m=groups();if(!customerStoreFilter){customerList.innerHTML='<p class="small">👆 اختاري متجرًا أولًا لعرض عميلاته.</p>';return;}let arr=Object.keys(m).filter(k=>String(m[k][0].storeId||'')===String(customerStoreFilter)&&String(m[k][0].name||'').toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>String(x.id)===String(o.storeId))||{name:'غير محدد'},t=a.reduce((x,y)=>x+(Number(y.price)||0)*(Number(y.qty||y.quantity||1)||1),0),pieces=a.reduce((x,y)=>x+(Number(y.qty||y.quantity||1)||1),0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${pieces} قطعة • <b>$${t.toFixed(2)}</b></div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="secondary" onclick="editCustomer('${encodeURIComponent(o.name)}')">✏️ تعديل الاسم</button><button class="gold" data-sid="${esc(String(o.storeId||''))}" data-name="${esc(o.name)}" onclick="openInvoiceFromButton(this)">🧾 الفاتورة</button><button class="danger" onclick="deleteCustomerFromStore('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🗑️ حذف</button></div></div>`}).join(''):'<p class="small">لا توجد عميلات لهذا المتجر بهذا البحث.</p>'}
 
 function adjustOrderCustomerQty(storeId,productName,customerName,delta){
   const list=orders||[];
@@ -891,7 +891,35 @@ function renderInvoiceHub(){
     <div class="invoice-hub-card"><h3>📅 الشهر</h3><select id="invoiceHubMonth" onchange="renderInvoiceHub()"><option value="">-- اختاري الشهر --</option>${listMonths.map(m=>`<option value="${esc(m)}" ${m===month?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select>${month?`<div style="margin-top:9px"><span class="invoice-month-pill ${isMonthArchived(sid,month)?'archived':''}">${isMonthArchived(sid,month)?'📦 مؤرشف':'🟢 حالي'}</span></div>`:''}</div>
   </div>
   ${month?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(monthLabel(month))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(month)}')">${isMonthArchived(sid,month)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div>
-  <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" onclick="invoiceHubOpenCustomer('${encodeURIComponent(sid)}','${encodeURIComponent(c.name)}','${encodeURIComponent(month)}')">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير لهذا الشهر.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وشهرًا لعرض الفواتير.</div>'}`;
+  <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" data-sid="${esc(String(sid))}" data-name="${esc(c.name)}" data-month="${esc(month)}" onclick="openInvoiceFromHubButton(this)">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير لهذا الشهر.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وشهرًا لعرض الفواتير.</div>'}`;
+}
+
+function openInvoiceFromButton(btn){
+  try{
+    const sid=String(btn?.dataset?.sid||'');
+    const name=String(btn?.dataset?.name||'');
+    if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');
+    invoice(encodeURIComponent(sid),encodeURIComponent(name),'');
+  }catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}
+}
+function openInvoiceFromHubButton(btn){
+  try{
+    const sid=String(btn?.dataset?.sid||'');
+    const name=String(btn?.dataset?.name||'');
+    const month=String(btn?.dataset?.month||'');
+    if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');
+    const matching=orders.filter(o=>{
+      const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(name);
+      if(!sameName)return false;
+      const st=findStoreForOrder(o);
+      const sameStore=String(o.storeId||'')===sid||(st&&String(st.id)===sid);
+      if(!sameStore)return false;
+      const d=orderEffectiveDate(o);
+      return !month || String(d||'').slice(0,7)===month.slice(0,7);
+    });
+    const dates=[...new Set(matching.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
+    invoice(encodeURIComponent(sid),encodeURIComponent(name),dates[0]?encodeURIComponent(dates[0]):'');
+  }catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}
 }
 
 function invoice(sidEnc,nEnc,dateEnc){
