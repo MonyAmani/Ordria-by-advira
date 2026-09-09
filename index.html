@@ -847,7 +847,7 @@ function archiveInvoiceMonth(sid,m){
   else {if(!confirm(`سيتم أرشفة ${monthLabel(m)} لهذا المتجر فقط. الطلبات والفواتير لن تُحذف، وأسماء العميلات ستظل محفوظة. متابعة؟`))return;a[key]={archivedAt:new Date().toISOString()};}
   saveInvoiceArchives(a);renderInvoiceHub();
 }
-function invoiceHubOpenCustomer(sid,name,date){invoice(encodeURIComponent(sid),encodeURIComponent(name),encodeURIComponent(date));}
+function invoiceHubOpenCustomer(sid,name,date){invoice(sid,name,date);}
 function renderInvoiceHub(){
   const hub=document.getElementById('invoiceHub'); if(!hub)return;
   const oldStore=document.getElementById('invoiceHubStore')?.value||'';
