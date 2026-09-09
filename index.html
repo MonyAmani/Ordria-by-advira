@@ -308,11 +308,13 @@ function clearForm(keep=true){let sid=storeSelect.value;productSelect.value='';n
 function groups(){let m={};orders.forEach(o=>{let k=o.storeId+'||'+o.name.trim();(m[k]??=[]).push(o)});return m}
 function renderCustomers(){let q=(customerSearch.value||'').trim().toLowerCase(),m=groups(),arr=Object.keys(m).filter(k=>m[k][0].name.toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>x.id===o.storeId)||{name:'غير محدد'},t=a.reduce((x,y)=>x+y.price,0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${a.length} منتج • <b>$${t.toFixed(2)}</b></div></div><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button></div>`}).join(''):'<p class="small">لا توجد نتائج.</p>'}
 function renderOrders(){
-  const box=document.getElementById('ordersList')||document.getElementById('orders');
+  const box=document.getElementById('orderList');
   if(!box)return;
 
   const rows=(typeof orders!=='undefined'?orders:[]);
-  const stores=[...new Set(rows.map(o=>String(o.store||o.storeName||o.shop||'بدون متجر').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+  const storeData=(typeof stores!=='undefined'?stores:[]);
+  const stores=[...storeData].map(s=>({id:String(s.id),name:String(s.name||'').trim()})).filter(s=>s.name)
+    .sort((a,b)=>a.name.localeCompare(b.name,'ar'));
 
   box.innerHTML=`
     <div class="orders-selector-v2">
@@ -353,18 +355,21 @@ function renderOrders(){
 
   function closeAll(){[storeOptions,productOptions,customerOptions].forEach(x=>x.classList.remove('open'));}
 
-  storeOptions.innerHTML=stores.length?stores.map(s=>`<button type="button" class="orders-option" data-store="${esc(s)}">🏪 ${esc(s)}</button>`).join(''):'<div class="orders-no-result">لا توجد متاجر مسجلة.</div>';
+  storeOptions.innerHTML=stores.length?stores.map(s=>`<button type="button" class="orders-option" data-store-id="${esc(s.id)}">🏪 ${esc(s.name)}</button>`).join(''):'<div class="orders-no-result">لا توجد متاجر مسجلة.</div>';
   storeButton.onclick=()=>{productOptions.classList.remove('open');customerOptions.classList.remove('open');storeOptions.classList.toggle('open')};
 
-  storeOptions.querySelectorAll('[data-store]').forEach(btn=>{
+  storeOptions.querySelectorAll('[data-store-id]').forEach(btn=>{
     btn.onclick=()=>{
-      selectedStore=btn.getAttribute('data-store');
+      const sid=btn.getAttribute('data-store-id');
+      const selectedStoreObj=stores.find(s=>s.id===sid);
+      selectedStore=selectedStoreObj?selectedStoreObj.name:'';
+      const selectedStoreId=sid;
       selectedProduct='';
       document.getElementById('ordersStoreValue').textContent=selectedStore;
       storeButton.textContent='✓ '+selectedStore+' — تغيير ▾';
       storeOptions.classList.remove('open');
 
-      const products=[...new Set(rows.filter(o=>String(o.store||o.storeName||o.shop||'').trim()===selectedStore)
+      const products=[...new Set(rows.filter(o=>String(o.storeId||'')===selectedStoreId)
         .map(o=>String(o.product||o.productName||o.item||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
 
       productCard.classList.remove('orders-disabled');
@@ -387,7 +392,7 @@ function renderOrders(){
           productOptions.classList.remove('open');
 
           const cm=new Map();
-          rows.filter(o=>String(o.store||o.storeName||o.shop||'').trim()===selectedStore &&
+          rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
                           String(o.product||o.productName||o.item||'').trim()===selectedProduct)
             .forEach(o=>{
               const name=String(o.name||o.customerName||o.customer||'').trim();
