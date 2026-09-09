@@ -390,7 +390,7 @@ function renderOrders(){
       </div>
 
       <div class="orders-select-card orders-disabled" id="ordersProductCard">
-        <div class="orders-select-head"><span>📦 المنتج</span><span id="ordersProductValue">اختاري المنتج</span><span id="ordersProductCount" class="orders-product-count" style="display:none"></span></div>
+        <div class="orders-select-head"><span>📦 المنتج</span><span id="ordersProductValue">اختاري المنتج</span></div>
         <button type="button" class="orders-select-button" id="ordersProductButton">اختاري المتجر أولًا ▾</button>
         <div class="orders-options" id="ordersProductOptions"></div>
       </div>
@@ -437,8 +437,6 @@ function renderOrders(){
       customerCard.classList.add('orders-disabled');
       document.getElementById('ordersProductValue').textContent='اختاري المنتج';
       document.getElementById('ordersCustomerValue').textContent='اختاري المنتج';
-      const productCountEl=document.getElementById('ordersProductCount');
-      if(productCountEl){productCountEl.textContent='';productCountEl.style.display='none';}
       productButton.textContent='اضغطي لاختيار المنتج ▾';
       customerButton.textContent='اختاري المنتج أولًا ▾';
       customerOptions.innerHTML='';
@@ -449,15 +447,10 @@ function renderOrders(){
       productOptions.querySelectorAll('[data-product]').forEach(pb=>{
         pb.onclick=()=>{
           selectedProduct=pb.getAttribute('data-product');
-          document.getElementById('ordersProductValue').textContent=selectedProduct;
           const productTotal=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
               String(o.product||o.productName||o.item||'').trim()===selectedProduct)
             .reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
-          const productCountEl=document.getElementById('ordersProductCount');
-          if(productCountEl){
-            productCountEl.textContent='إجمالي القطع: '+productTotal;
-            productCountEl.style.display='inline-flex';
-          }
+          document.getElementById('ordersProductValue').textContent=selectedProduct+' — '+productTotal+' قطعة';
           productButton.textContent='✓ '+selectedProduct+' — تغيير ▾';
           productOptions.classList.remove('open');
 
