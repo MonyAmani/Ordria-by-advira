@@ -179,11 +179,10 @@ function closeProductCustomers(){
 </script>
 <script>
 document.addEventListener('click',function(e){
-  const el=e.target.closest('[data-product-index]');
-  if(!el)return;
-  const i=Number(el.getAttribute('data-product-index'));
-  if(Number.isInteger(i) && products[i]) showProductCustomers(products[i].name);
-});
+    const el=e.target.closest('[data-product-name]');
+    if(!el)return;
+    window.showProductCustomers(el.getAttribute('data-product-name')||'');
+  });
 </script>
 <script>
 let sb=null, cloudUser=null, cloudBusy=false;
@@ -230,7 +229,7 @@ function addProduct(){let n=catalogName.value.trim(),p=Number(catalogPrice.value
 function renderProducts(){
   productList.innerHTML=products.length
     ? products.map((p,i)=>`<div class="productRow">
-        <div class="product-clickable" data-product-index="${i}" title="اضغطي لعرض العميلات">
+        <div class="product-clickable" data-product-name="${String(p.name).replace(/"/g, "&quot;")}" title="اضغطي لعرض العميلات">
           <b>${esc(p.name)}</b>
           <div class="small">$${Number(p.price).toFixed(2)} — اضغطي لعرض العميلات</div>
         </div>
@@ -334,15 +333,52 @@ if ('serviceWorker' in navigator) {
     const title=document.getElementById('productCustomerTitle');
     const count=document.getElementById('productCustomerCount');
     if(!modal||!list)return;
+
     const target=String(productName||'').trim();
     const map=new Map();
-    (window.orders||[]).forEach(function(o){
-      if(String(o.product||'').trim()!==target)return;
-      const name=String(o.name||o.customerName||'').trim();
+    const add=function(name,qty){
+      name=String(name||'').trim();
       if(!name)return;
-      const qty=Number(o.qty||o.quantity||1)||1;
+      qty=Number(qty)||1;
       map.set(name,(map.get(name)||0)+qty);
+    };
+    const same=function(v){return String(v||'').trim()===target;};
+
+    (typeof orders!=='undefined'?orders:[]).forEach(function(o){
+      const op=o.product||o.productName||o.item||'';
+      const matches=same(op) || same(o.product_id) || same(o.productId);
+
+      if(matches){
+        if(o.name||o.customerName||o.customer){
+          add(o.name||o.customerName||o.customer, o.qty||o.quantity||1);
+        }
+        const raw=o.names||o.customerNames||o.customers||'';
+        if(Array.isArray(raw)){
+          raw.forEach(function(n){ add(typeof n==='string'?n:(n.name||n.customerName),n.qty||n.quantity||1); });
+        }else if(raw){
+          String(raw).split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean)
+            .forEach(function(n){add(n,1);});
+        }
+      }
+
+      // Legacy/batch shapes: product may be nested in a line/items array.
+      const lines=o.items||o.lines||o.products||[];
+      if(Array.isArray(lines)){
+        lines.forEach(function(it){
+          const ip=it.product||it.productName||it.nameProduct||it.item||'';
+          if(!same(ip))return;
+          const raw=it.names||it.customerNames||it.customers||'';
+          if(Array.isArray(raw)){
+            raw.forEach(function(n){add(typeof n==='string'?n:(n.name||n.customerName),n.qty||n.quantity||1);});
+          }else if(raw){
+            String(raw).split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean)
+              .forEach(function(n){add(n,1);});
+          }
+          if(it.customerName||it.customer||it.name) add(it.customerName||it.customer||it.name,it.qty||it.quantity||1);
+        });
+      }
     });
+
     const rows=Array.from(map.entries()).sort(function(a,b){return a[0].localeCompare(b[0],'ar');});
     title.textContent='عميلات: '+target;
     count.textContent=rows.length ? 'عدد العميلات: '+rows.length : 'لا توجد طلبات مسجلة لهذا المنتج حتى الآن';
