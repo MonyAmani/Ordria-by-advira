@@ -1200,6 +1200,18 @@ async function saveAllCurrentInvoicesAsImages(sid,date){
     if(!customers.length){alert('لا توجد فواتير مسجلة لهذا التاريخ.');return;}
     if(!confirm(`هيتم حفظ ${customers.length} صورة فاتورة على الجهاز بتاريخ ${invoiceDateLabel(date)}.\nكمّلي؟`))return;
     if(typeof html2canvas!=='function')throw new Error('html2canvas');
+    let targetDir=null;
+    if('showDirectoryPicker' in window){
+      try{
+        targetDir=await window.showDirectoryPicker({mode:'readwrite'});
+      }catch(err){
+        if(err?.name==='AbortError')return;
+        throw err;
+      }
+    }else{
+      const ok=confirm('المتصفح الحالي لا يدعم اختيار مجلد مباشرة.\nلو كمّلتي، الصور هتنزل في مجلد التنزيلات المعتاد.\nيفضل استخدام Google Chrome على الكمبيوتر لاختيار مكان الحفظ.');
+      if(!ok)return;
+    }
     const holder=document.createElement('div');
     holder.style.cssText='position:fixed;left:-100000px;top:0;width:900px;background:#fff;z-index:-1;';
     document.body.appendChild(holder);
@@ -1213,16 +1225,26 @@ async function saveAllCurrentInvoicesAsImages(sid,date){
       const canvas=await html2canvas(el,{scale:2,backgroundColor:'#fff',useCORS:true,logging:false,ignoreElements:node=>node.classList?.contains('no-print')});
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png',1));
       if(!blob)continue;
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download=`Ordry-${cleanFileName(c.name)}-${date}.png`;
-      document.body.appendChild(a);a.click();a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+      const fileName=`Ordry-${cleanFileName(c.name)}-${date}.png`;
+      if(targetDir){
+        const fileHandle=await targetDir.getFileHandle(fileName,{create:true});
+        const writable=await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      }else{
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=fileName;
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+      }
       saved++;
-      await new Promise(r=>setTimeout(r,350));
+      await new Promise(r=>setTimeout(r,150));
     }
     holder.remove();
-    alert(`تم حفظ ${saved} صورة فاتورة ❤️\nكل عميلة في صورة منفصلة، وتقدري تشاركيهم من الجهاز.`);
+    alert(targetDir
+      ? `تم حفظ ${saved} صورة فاتورة في المجلد اللي اخترتيه ❤️\nكل عميلة في صورة منفصلة.`
+      : `تم حفظ ${saved} صورة فاتورة ❤️\nكل عميلة في صورة منفصلة، وتقدري تشاركيهم من الجهاز.`);
   }catch(e){
     console.error(e);
     document.querySelectorAll('[data-ordry-batch-holder]').forEach(x=>x.remove());
