@@ -112,7 +112,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 
 <style id="clothing-customer-suggestions">
 .variant-customer-wrap{position:relative;min-width:0;flex:1}
-.variant-customer-wrap input{width:100%}
+.variant-customer-wrap input,.variant-customer-wrap textarea{width:100%}.variant-customer-wrap textarea{min-height:58px;resize:vertical}
 .variant-customer-suggestions{display:none;position:absolute;z-index:50;right:0;left:0;top:100%;background:#fff;border:1px solid #c9a66b;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.12);max-height:190px;overflow:auto}
 .variant-customer-suggestions.open{display:block}
 .variant-customer-suggestion{display:block;width:100%;border:0;background:#fff;text-align:right;padding:10px 12px;font-size:14px;color:#5b3822;cursor:pointer;border-bottom:1px solid #eee}
@@ -125,7 +125,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 .customer-suggestions{display:none;position:absolute;z-index:20;right:0;left:0;top:100%;margin-top:-1px;background:#fff;border:1px solid #c9a66b;border-radius:0 0 12px 12px;box-shadow:0 8px 20px rgba(0,0,0,.10);max-height:210px;overflow:auto}
 .customer-suggestions.open{display:block}
 .customer-suggestion{display:block;width:100%;border:0;background:#fff;text-align:right;padding:11px 13px;font-size:15px;color:#5b3822;cursor:pointer;border-bottom:1px solid #eee}
-.clothes-mode{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fffaf3}.clothes-mode-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.variant-row{display:grid;grid-template-columns:1.5fr 1fr 1fr .6fr auto;gap:7px;align-items:center;margin-top:8px}.variant-row input,.variant-row select{padding:9px}.variant-remove{background:#f3e5e5!important;color:#8b2e2e!important;padding:8px 10px!important}.clothes-hidden{display:none!important}@media(max-width:700px){.variant-row{grid-template-columns:1fr 1fr}.variant-row .variant-customer{grid-column:1/-1}.variant-remove{grid-column:2}}
+.clothes-mode{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fffaf3}.clothes-mode-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.variant-row{display:grid;grid-template-columns:1.8fr 1fr 1fr auto;gap:7px;align-items:start;margin-top:8px}.variant-row input,.variant-row select{padding:9px}.variant-remove{background:#f3e5e5!important;color:#8b2e2e!important;padding:8px 10px!important}.clothes-hidden{display:none!important}@media(max-width:700px){.variant-row{grid-template-columns:1fr 1fr}.variant-row .variant-customer{grid-column:1/-1}.variant-remove{grid-column:2}}
 
 .customer-suggestion:last-child{border-bottom:0}
 .customer-suggestion:hover{background:#fff8ed}
@@ -176,7 +176,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
   <div class="small">اكتبي كل عميلة في سطر. لو العميلة واخدة أكتر من قطعة اكتبي بعد اسمها + والعدد، مثل: مني +4 = ٤ قطع.</div>
 </div>
 <div id="clothesOrderBox" class="clothes-mode clothes-hidden">
-  <div class="clothes-mode-head"><b>👗 تفاصيل كل قطعة</b><span class="small">اختاري اللون والمقاس بدل الكتابة</span></div>
+  <div class="clothes-mode-head"><b>👗 تفاصيل كل دفعة</b><span class="small">اختاري اللون والمقاس واكتبي أكتر من عميلة في نفس السطر</span></div>
   <div id="variantRows"></div>
   <button type="button" class="secondary" style="margin-top:10px" onclick="addVariantRow()">➕ إضافة لون / مقاس</button>
 </div>
@@ -640,8 +640,13 @@ function setupVariantCustomerSuggestions(row){
   if(!input||!box||input.dataset.suggestionsReady)return;
   input.dataset.suggestionsReady='1';
   function close(){box.classList.remove('open');box.innerHTML='';}
+  function currentLine(){
+    const value=input.value||'';
+    const parts=value.split(/\n/);
+    return (parts[parts.length-1]||'').trim();
+  }
   function render(){
-    const q=(input.value||'').trim().toLowerCase();
+    const q=currentLine().toLowerCase();
     if(!q){close();return;}
     const all=getSavedCustomerNames();
     const starts=all.filter(n=>n.toLowerCase().startsWith(q));
@@ -652,34 +657,44 @@ function setupVariantCustomerSuggestions(row){
     box.classList.add('open');
     box.querySelectorAll('[data-name]').forEach(btn=>btn.addEventListener('mousedown',function(e){
       e.preventDefault();
-      input.value=btn.getAttribute('data-name')||'';
+      const value=input.value||'';
+      const parts=value.split(/\n/);
+      parts[parts.length-1]=btn.getAttribute('data-name')||'';
+      input.value=parts.join('\n');
       close();
       input.focus();
     }));
   }
   input.addEventListener('input',render);
   input.addEventListener('focus',render);
+  input.addEventListener('keyup',render);
   input.addEventListener('blur',()=>setTimeout(close,120));
 }
 function addVariantRow(data={}){
   const box=document.getElementById('variantRows'); if(!box)return;
   const row=document.createElement('div'); row.className='variant-row';
-  row.innerHTML=`<div class="variant-customer-wrap"><input class="variant-customer" autocomplete="off" placeholder="اسم العميلة" value="${esc(data.name||'')}"><div class="variant-customer-suggestions"></div></div>
+  row.innerHTML=`<div class="variant-customer-wrap"><textarea class="variant-customer" autocomplete="off" placeholder="أسماء العميلات — كل اسم في سطر\nمثال: منى\nسارة +2"></textarea><div class="variant-customer-suggestions"></div></div>
     <select class="variant-color">${variantSelectOptions(CLOTHING_COLORS,'اللون')}${data.color?`<option value="${esc(data.color)}" selected>${esc(data.color)}</option>`:''}</select>
     <select class="variant-size">${variantSelectOptions(CLOTHING_SIZES,'المقاس')}${data.size?`<option value="${esc(data.size)}" selected>${esc(data.size)}</option>`:''}</select>
-    <input class="variant-qty" type="number" min="1" step="1" value="${Number(data.qty)||1}" aria-label="العدد">
     <button type="button" class="variant-remove" onclick="this.closest('.variant-row').remove()">✕</button>`;
+  const ta=row.querySelector('.variant-customer');
+  ta.value=Array.isArray(data.names)?data.names.join('\n'):(data.name||'');
   box.appendChild(row);
   setupVariantCustomerSuggestions(row);
 }
 function getClothingParsed(){
-  return [...document.querySelectorAll('#variantRows .variant-row')].map(r=>{
-    const name=r.querySelector('.variant-customer')?.value.trim()||'';
+  const out=[];
+  document.querySelectorAll('#variantRows .variant-row').forEach(r=>{
+    const names=r.querySelector('.variant-customer')?.value||'';
     const color=r.querySelector('.variant-color')?.value.trim()||'';
     const size=r.querySelector('.variant-size')?.value.trim()||'';
-    const qty=Math.max(1,Math.floor(Number(r.querySelector('.variant-qty')?.value)||1));
-    return {name,color,size,qty};
-  }).filter(x=>x.name&&x.color&&x.size);
+    if(!color||!size)return;
+    names.split(/\n+/).map(x=>x.trim()).filter(Boolean).forEach(line=>{
+      const parsed=parseCustomerLine(line);
+      if(parsed?.name)out.push({name:parsed.name,color,size,qty:parsed.qty});
+    });
+  });
+  return out;
 }
 function addBatch(){
   let sid=String(storeSelect.value||''),p=productSelect.value?products.find(x=>String(x.id)===String(productSelect.value)):null,
@@ -688,7 +703,7 @@ function addBatch(){
       parsed=orderEntryType==='clothes'?getClothingParsed():lines.map(parseCustomerLine).filter(Boolean),
       orderDate=(document.getElementById('orderDate')?.value)||todayLocalDate(),
       mode=window.entryInvoiceMode||'new';
-  if(!sid||!pname||!pr||!parsed.length)return alert(orderEntryType==='clothes'?'اختاري اسم العميلة واللون والمقاس والعدد لكل قطعة.':'اختاري المتجر واكتبي/اختاري المنتج والسعر والأسماء.');
+  if(!sid||!pname||!pr||!parsed.length)return alert(orderEntryType==='clothes'?'اختاري اسم/أسماء العميلات واللون والمقاس لكل دفعة.':'اختاري المتجر واكتبي/اختاري المنتج والسعر والأسماء.');
   if(mode==='continue'){
     const oldDate=document.getElementById('continueInvoiceDate')?.value||'';
     if(!oldDate)return alert('اختاري تاريخ الفاتورة القديمة التي تريدين الاستكمال عليها.');
