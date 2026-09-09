@@ -431,11 +431,23 @@ function renderOrders(){
             ? customers.map(([n,q])=>`<button type="button" class="orders-option" data-customer="${esc(n)}">👤 ${esc(n)} — ${q} قطعة</button>`).join('')
             : '<div class="orders-no-result">لا يوجد عملاء لهذا المنتج.</div>';
 
-          results.innerHTML=customers.length
-            ? '<b>عملاء المنتج</b>'+customers.map(([n,q])=>`<div class="orders-result-row"><span>👤 ${esc(n)}</span><strong>${q} قطعة</strong></div>`).join('')
-            : '<div class="orders-no-result">لا يوجد عملاء مسجلون لهذا المنتج.</div>';
+          results.innerHTML='<div class="orders-no-result">اضغطي «العملاء» لعرض الأسماء.</div>';
 
-          customerButton.onclick=()=>{storeOptions.classList.remove('open');productOptions.classList.remove('open');customerOptions.classList.toggle('open')};
+          customerButton.onclick=()=>{
+            storeOptions.classList.remove('open');
+            productOptions.classList.remove('open');
+            const opening=!customerOptions.classList.contains('open');
+            customerOptions.classList.toggle('open', opening);
+            if(opening){
+              results.innerHTML=customers.length
+                ? '<b>عملاء المنتج</b>'+customers.map(([n,q])=>`<div class="orders-result-row"><span>👤 ${esc(n)}</span><strong>${q} قطعة</strong></div>`).join('')
+                : '<div class="orders-no-result">لا يوجد عملاء مسجلون لهذا المنتج.</div>';
+              customerButton.textContent='✓ العملاء — إخفاء ▴';
+            }else{
+              results.innerHTML='<div class="orders-no-result">اضغطي «العملاء» لعرض الأسماء.</div>';
+              customerButton.textContent='اضغطي لعرض العملاء ▾';
+            }
+          };
           customerOptions.querySelectorAll('[data-customer]').forEach(cb=>cb.onclick=()=>{customerButton.textContent='✓ '+cb.getAttribute('data-customer')+' — تغيير ▾';customerOptions.classList.remove('open')});
         };
       });
