@@ -836,6 +836,7 @@ function invoiceArchives(){try{return JSON.parse(localStorage.getItem(INVOICE_AR
 function saveInvoiceArchives(x){localStorage.setItem(INVOICE_ARCHIVE_KEY,JSON.stringify(x));cloudSave().catch(()=>{})}
 function monthKey(date){const d=normalizeOrderDate(date)||todayLocalDate();return d.slice(0,7)}
 function monthLabel(m){if(!m)return '';const [y,mo]=m.split('-');return `شهر ${mo}/${y}`}
+function invoiceDateLabel(d){const x=normalizeOrderDate(d);if(!x)return '';const [y,mo,day]=x.split('-');const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];return `${Number(day)} ${names[Number(mo)-1]||mo} ${y}`}
 function storeMonthOrders(sid){return orders.filter(o=>{const st=findStoreForOrder(o);return st&&String(st.id)===String(sid)&&orderEffectiveDate(o)})}
 function invoiceMonthData(sid){const map={};storeMonthOrders(sid).forEach(o=>{const m=monthKey(orderEffectiveDate(o));(map[m]??=[]).push(o)});return map}
 function isMonthArchived(sid,m){const a=invoiceArchives();return !!a[`${sid}||${m}`]}
@@ -871,29 +872,31 @@ function invoiceHubOpenCustomer(sidEnc,nameEnc,monthKey){
 function renderInvoiceHub(){
   const hub=document.getElementById('invoiceHub'); if(!hub)return;
   const oldStore=document.getElementById('invoiceHubStore')?.value||'';
-  const oldMonth=document.getElementById('invoiceHubMonth')?.value||'';
+  const oldDate=document.getElementById('invoiceHubDate')?.value||'';
   const oldMode=document.getElementById('invoiceHubMode')?.value||'current';
   if(!stores.length){hub.innerHTML='<div class="invoice-hub-empty">أضيفي متجرًا أولًا علشان نعرض فواتيره.</div>';return;}
   const sid=stores.some(s=>String(s.id)===String(oldStore))?oldStore:String(stores[0].id);
-  const months=Object.keys(invoiceMonthData(sid)).sort().reverse();
-  const archivedMonths=months.filter(m=>isMonthArchived(sid,m));
-  const currentMonths=months.filter(m=>!isMonthArchived(sid,m));
+  const monthMap=invoiceMonthData(sid);
+  const allDates=[...new Set(Object.values(monthMap).flat().map(orderEffectiveDate).filter(Boolean))].sort().reverse();
   const mode=(oldMode==='archive'?'archive':'current');
-  const listMonths=mode==='archive'?archivedMonths:currentMonths;
-  let month= listMonths.includes(oldMonth)?oldMonth:(listMonths[0]||'');
-  const data=invoiceMonthData(sid)[month]||[];
+  const listDates=allDates.filter(d=>mode==='archive'?isMonthArchived(sid,monthKey(d)):!isMonthArchived(sid,monthKey(d)));
+  let selectedDate=listDates.includes(oldDate)?oldDate:(listDates[0]||'');
+  const data=selectedDate?orders.filter(o=>{
+    const st=findStoreForOrder(o); if(!st||String(st.id)!==String(sid))return false;
+    return orderEffectiveDate(o)===selectedDate;
+  }):[];
   const customersBy={};
   data.forEach(o=>{const key=cleanKey(o.name||'');if(!key)return;if(!customersBy[key])customersBy[key]={name:o.name,orders:[],total:0,pieces:0};customersBy[key].orders.push(o);customersBy[key].total+=(Number(o.price)||0)*(Number(o.qty||o.quantity||1)||1);customersBy[key].pieces+=Number(o.qty||o.quantity||1)||1;});
   const custs=Object.values(customersBy).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  const selectedMonth=selectedDate?monthKey(selectedDate):'';
   hub.innerHTML=`<div class="invoice-hub-grid">
     <div class="invoice-hub-card"><h3>🏪 المتجر</h3><select id="invoiceHubStore" onchange="renderInvoiceHub()">${stores.map(st=>`<option value="${esc(st.id)}" ${String(st.id)===String(sid)?'selected':''}>${esc(st.name)}</option>`).join('')}</select></div>
     <div class="invoice-hub-card"><h3>📂 القسم</h3><select id="invoiceHubMode" onchange="renderInvoiceHub()"><option value="current" ${mode==='current'?'selected':''}>🧾 الفواتير الحالية</option><option value="archive" ${mode==='archive'?'selected':''}>📦 الأرشيف</option></select><div class="small" style="margin-top:7px">الأرشيف خاص بهذا المتجر فقط ولا يحذف أي بيانات.</div></div>
-    <div class="invoice-hub-card"><h3>📅 الشهر</h3><select id="invoiceHubMonth" onchange="renderInvoiceHub()"><option value="">-- اختاري الشهر --</option>${listMonths.map(m=>`<option value="${esc(m)}" ${m===month?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select>${month?`<div style="margin-top:9px"><span class="invoice-month-pill ${isMonthArchived(sid,month)?'archived':''}">${isMonthArchived(sid,month)?'📦 مؤرشف':'🟢 حالي'}</span></div>`:''}</div>
+    <div class="invoice-hub-card"><h3>📅 تاريخ الفاتورة</h3><select id="invoiceHubDate" onchange="renderInvoiceHub()"><option value="">-- اختاري تاريخ الفاتورة --</option>${listDates.map(d=>`<option value="${esc(d)}" ${d===selectedDate?'selected':''}>${esc(invoiceDateLabel(d))}</option>`).join('')}</select>${selectedDate?`<div style="margin-top:9px"><span class="invoice-month-pill ${isMonthArchived(sid,selectedMonth)?'archived':''}">${isMonthArchived(sid,selectedMonth)?'📦 مؤرشف':'🟢 حالي'}</span></div>`:''}</div>
   </div>
-  ${month?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(monthLabel(month))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(month)}')">${isMonthArchived(sid,month)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div>
-  <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" data-sid="${esc(String(sid))}" data-name="${esc(c.name)}" data-month="${esc(month)}" onclick="openInvoiceFromHubButton(this)">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير لهذا الشهر.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وشهرًا لعرض الفواتير.</div>'}`;
+  ${selectedDate?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(invoiceDateLabel(selectedDate))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(selectedMonth)}')">${isMonthArchived(sid,selectedMonth)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div>
+  <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" data-sid="${esc(String(sid))}" data-name="${esc(c.name)}" data-date="${esc(selectedDate)}" onclick="openInvoiceFromHubButton(this)">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير في هذا التاريخ.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وتاريخ الفاتورة لعرض الفواتير.</div>'}`;
 }
-
 function getInvoiceContext(sid,name,dateEnc){
   const allCustomerOrders=orders.filter(o=>{
     const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(name);
@@ -953,7 +956,7 @@ function openInvoiceWindow(sid,name,date){
   w.document.open(); w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>فاتورة ${esc(name)} - Ordry</title><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"><\/script><style>body{font-family:Arial,sans-serif;background:#f5f3ef;margin:0;padding:25px;color:#222}.invoice{max-width:820px;margin:auto;background:#fff;padding:28px;border-radius:18px;box-shadow:0 8px 30px #0001}.invoice-actions{display:flex;gap:8px;justify-content:flex-start;margin-bottom:15px}.invoice-actions button{padding:10px 14px;border:0;border-radius:10px;background:#151515;color:#fff;cursor:pointer}.hint{background:#faf7f1;border:1px solid #eadfce;border-radius:12px;padding:12px;margin-bottom:15px}.actions{display:flex;gap:8px;margin-top:8px}.actions select,.actions input{padding:10px;border:1px solid #ddd;border-radius:10px;flex:1}.invoice-brand{text-align:center;border-bottom:1px solid #ddd;padding-bottom:18px;margin-bottom:18px}.invoice-brand img{width:90px;height:90px;object-fit:contain;display:block;margin:auto}.invoice-brand-title{font-weight:800;font-size:22px;margin-top:6px}.invoice-head{display:flex;justify-content:space-between;gap:20px;padding-bottom:15px;border-bottom:1px solid #ddd}.small{font-size:12px;color:#666}.invoice-items{width:100%;border-collapse:collapse;margin-top:20px}.invoice-items th,.invoice-items td{padding:12px;border-bottom:1px solid #eee;text-align:right}.invoice-total-box{margin-top:20px;padding:16px;border:2px solid #8b6a4b;border-radius:12px;display:flex;justify-content:space-between;font-size:20px;font-weight:800}.invoice-footer{text-align:center;margin-top:24px;color:#777}@media print{body{background:#fff;padding:0}.invoice{box-shadow:none;border-radius:0;max-width:none}.no-print{display:none!important}}@media(max-width:600px){.invoice-head{flex-direction:column}.actions{flex-direction:column}}</style></head><body><div id="invoiceRoot">${initial.html}</div>${script}</body></html>`); w.document.close(); w.focus();
 }
 function openInvoiceFromButton(btn){try{const sid=String(btn?.dataset?.sid||''),name=String(btn?.dataset?.name||'');if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');openInvoiceWindow(sid,name,'');}catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}}
-function openInvoiceFromHubButton(btn){try{const sid=String(btn?.dataset?.sid||''),name=String(btn?.dataset?.name||''),month=String(btn?.dataset?.month||'');if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');const matching=orders.filter(o=>{const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(name);if(!sameName)return false;const st=findStoreForOrder(o);const sameStore=String(o.storeId||'')===sid||(st&&String(st.id)===sid);if(!sameStore)return false;const d=orderEffectiveDate(o);return !month||String(d||'').slice(0,7)===month.slice(0,7);});const dates=[...new Set(matching.map(orderEffectiveDate).filter(Boolean))].sort().reverse();openInvoiceWindow(sid,name,dates[0]||'');}catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}}
+function openInvoiceFromHubButton(btn){try{const sid=String(btn?.dataset?.sid||''),name=String(btn?.dataset?.name||''),date=String(btn?.dataset?.date||'');if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');openInvoiceWindow(sid,name,date);}catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}}
 
 function invoice(sidEnc,nEnc,dateEnc){
   const sid=decodeURIComponent(sidEnc), n=decodeURIComponent(nEnc);
