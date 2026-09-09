@@ -35,6 +35,23 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 .product-clickable{cursor:pointer}
 .product-clickable:hover{background:#fff9ed}
 </style>
+
+<style>
+.orders-browser{margin-top:12px}
+.orders-store,.orders-product{border:1px solid #e5e5e5;border-radius:12px;margin:8px 0;overflow:hidden;background:#fff}
+.orders-store-head,.orders-product-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;cursor:pointer}
+.orders-store-head{font-weight:800;background:#fafafa}
+.orders-product-head{font-weight:700}
+.orders-store-head:hover,.orders-product-head:hover{background:#fff9ed}
+.orders-arrow{font-size:14px;transition:transform .15s}
+.orders-open>.orders-store-head .orders-arrow,.orders-product.open>.orders-product-head .orders-arrow{transform:rotate(90deg)}
+.orders-store-body,.orders-product-body{display:none;padding:0 14px 12px}
+.orders-open>.orders-store-body,.orders-product.open>.orders-product-body{display:block}
+.orders-customer{display:flex;justify-content:space-between;align-items:center;padding:10px 8px;border-top:1px solid #eee}
+.orders-customer-name{font-weight:600}
+.orders-customer-qty{font-size:13px;color:#777}
+.orders-empty{padding:14px;color:#777;font-size:14px}
+</style>
 </head>
 <body>
 <header><div class="brand"><div class="logo">O</div><div><h1>Ordria</h1><p>by Advira • Smart Orders. Simple Invoices.</p></div></div></header>
@@ -271,7 +288,70 @@ function addBatch(){let sid=storeSelect.value,p=productSelect.value?products.fin
 function clearForm(keep=true){let sid=storeSelect.value;productSelect.value='';newProduct.value='';price.value='';names.value='';if(keep)storeSelect.value=sid}
 function groups(){let m={};orders.forEach(o=>{let k=o.storeId+'||'+o.name.trim();(m[k]??=[]).push(o)});return m}
 function renderCustomers(){let q=(customerSearch.value||'').trim().toLowerCase(),m=groups(),arr=Object.keys(m).filter(k=>m[k][0].name.toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>x.id===o.storeId)||{name:'غير محدد'},t=a.reduce((x,y)=>x+y.price,0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${a.length} منتج • <b>$${t.toFixed(2)}</b></div></div><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button></div>`}).join(''):'<p class="small">لا توجد نتائج.</p>'}
-function renderOrders(){orderList.innerHTML=orders.length?`<table><thead><tr><th>المتجر</th><th>العميلة</th><th>المنتج</th><th>السعر</th><th>إجراء</th></tr></thead><tbody>${orders.map(o=>{let s=stores.find(x=>x.id===o.storeId)||{name:'غير محدد'};return `<tr><td>${esc(s.name)}</td><td>${esc(o.name)}</td><td>${esc(o.product)}</td><td>$${o.price.toFixed(2)}</td><td><button style="padding:6px 9px" onclick="openEdit('${o.id}')">✏️</button> <button class="danger" style="padding:6px 9px" onclick="del('${o.id}')">حذف</button></td></tr>`}).join('')}</tbody></table>`:'<p class="small">لا توجد طلبات.</p>'}
+function renderOrders(){
+  const box=document.getElementById('ordersList')||document.getElementById('orders');
+  if(!box)return;
+
+  const storeMap=new Map();
+  (typeof orders!=='undefined'?orders:[]).forEach(o=>{
+    const store=String(o.store||o.storeName||o.shop||'بدون متجر').trim()||'بدون متجر';
+    const product=String(o.product||o.productName||o.item||'بدون منتج').trim()||'بدون منتج';
+    const name=String(o.name||o.customerName||o.customer||'').trim();
+    const qty=Number(o.qty||o.quantity||1)||1;
+
+    if(!storeMap.has(store))storeMap.set(store,new Map());
+    const pm=storeMap.get(store);
+    if(!pm.has(product))pm.set(product,new Map());
+    if(name){
+      const cm=pm.get(product);
+      cm.set(name,(cm.get(name)||0)+qty);
+    }
+  });
+
+  const stores=[...storeMap.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
+  if(!stores.length){
+    box.innerHTML='<div class="orders-empty">لا توجد طلبات مسجلة حتى الآن.</div>';
+    return;
+  }
+
+  box.innerHTML='<div class="orders-browser">'+stores.map(([store,pm],si)=>{
+    const products=[...pm.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
+    return `<div class="orders-store" data-store-index="${si}">
+      <div class="orders-store-head">
+        <span>🏪 ${esc(store)}</span><span class="orders-arrow">▶</span>
+      </div>
+      <div class="orders-store-body">
+        ${products.length?products.map(([product,cm],pi)=>{
+          const customers=[...cm.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
+          return `<div class="orders-product" data-product-index="${pi}">
+            <div class="orders-product-head">
+              <span>📦 ${esc(product)}</span><span class="orders-arrow">▶</span>
+            </div>
+            <div class="orders-product-body">
+              ${customers.length?customers.map(([name,qty])=>
+                `<div class="orders-customer"><span class="orders-customer-name">👤 ${esc(name)}</span><span class="orders-customer-qty">${qty} قطعة</span></div>`
+              ).join(''):'<div class="orders-empty">لا توجد أسماء مسجلة لهذا المنتج.</div>'}
+            </div>
+          </div>`;
+        }).join(''):'<div class="orders-empty">لا توجد منتجات لهذا المتجر.</div>'}
+      </div>
+    </div>`;
+  }).join('');
+
+  const storesEls=box.querySelectorAll('.orders-store');
+  storesEls.forEach(storeEl=>{
+    storeEl.querySelector('.orders-store-head').addEventListener('click',()=>{
+      storeEl.classList.toggle('orders-open');
+    });
+    storeEl.querySelectorAll('.orders-product').forEach(productEl=>{
+      productEl.querySelector('.orders-product-head').addEventListener('click',e=>{
+        e.stopPropagation();
+        productEl.classList.toggle('open');
+      });
+    });
+  });
+}
+
 function openEdit(id){let o=orders.find(x=>x.id===id);if(!o)return;editingId=id;editName.value=o.name;editProduct.value=o.product;editPrice.value=o.price;editModal.classList.add('open')}
 function closeEdit(){editingId=null;editModal.classList.remove('open')}
 function saveEdit(){let o=orders.find(x=>x.id===editingId),n=editName.value.trim(),p=editProduct.value.trim(),v=Number(editPrice.value);if(!o||!n||!p||!v)return alert('راجعي البيانات.');o.name=n;o.product=p;o.price=v;persist();closeEdit()}
