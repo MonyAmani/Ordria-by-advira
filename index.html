@@ -433,9 +433,10 @@ function adjustOrderCustomerQty(storeId,productName,customerName,delta){
       list.splice(i,1);
     }
   }
+  ordersViewState.storeId=String(storeId||'');
+  ordersViewState.product=String(productName||'');
+  ordersViewState.showCustomers=true;
   if(typeof persist==='function') persist();
-  if(typeof renderAll==='function') renderAll();
-  if(typeof renderOrders==='function') renderOrders();
 }
 function renameCustomer(oldName,newName){
   oldName=String(oldName||'').trim();
@@ -486,10 +487,12 @@ function removeOrderCustomer(storeId,productName,customerName){
       list.splice(i,1);
     }
   }
+  ordersViewState.storeId=String(storeId||'');
+  ordersViewState.product=String(productName||'');
+  ordersViewState.showCustomers=true;
   if(typeof persist==='function') persist();
-  if(typeof renderAll==='function') renderAll();
-  if(typeof renderOrders==='function') renderOrders();
 }
+let ordersViewState={storeId:'',product:'',showCustomers:false};
 function renderOrders(){
   const box=document.getElementById('orderList');
   if(!box)return;
@@ -543,6 +546,9 @@ function renderOrders(){
       const selectedStoreObj=storeChoices.find(s=>s.id===sid);
       selectedStore=selectedStoreObj?selectedStoreObj.name:'';
       const selectedStoreId=sid;
+      ordersViewState.storeId=sid;
+      ordersViewState.product='';
+      ordersViewState.showCustomers=false;
       selectedProduct='';
       document.getElementById('ordersStoreValue').textContent=selectedStore;
       storeButton.textContent='✓ '+selectedStore+' — تغيير ▾';
@@ -565,6 +571,9 @@ function renderOrders(){
       productOptions.querySelectorAll('[data-product]').forEach(pb=>{
         pb.onclick=()=>{
           selectedProduct=pb.getAttribute('data-product');
+          ordersViewState.storeId=selectedStoreId;
+          ordersViewState.product=selectedProduct;
+          ordersViewState.showCustomers=true;
           const productTotal=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
               String(o.product||o.productName||o.item||'').trim()===selectedProduct)
             .reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
@@ -603,8 +612,10 @@ function renderOrders(){
             customerOptions.classList.toggle('open', opening);
             if(opening){
               customerButton.textContent='✓ العملاء — إخفاء ▴';
+              ordersViewState.showCustomers=true;
             }else{
               customerButton.textContent='اضغطي لعرض العملاء ▾';
+              ordersViewState.showCustomers=false;
             }
           };
           
@@ -612,6 +623,18 @@ function renderOrders(){
       });
     };
   });
+
+  // Keep the same store/product/customer view after changing a quantity.
+  if(ordersViewState.storeId){
+    const sb=[...storeOptions.querySelectorAll('[data-store-id]')].find(x=>x.getAttribute('data-store-id')===ordersViewState.storeId);
+    if(sb){
+      sb.click();
+      if(ordersViewState.product){
+        const pb=[...productOptions.querySelectorAll('[data-product]')].find(x=>x.getAttribute('data-product')===ordersViewState.product);
+        if(pb) pb.click();
+      }
+    }
+  }
 }
 
 function openEdit(id){let o=orders.find(x=>x.id===id);if(!o)return;editingId=id;editName.value=o.name;editProduct.value=o.product;editPrice.value=o.price;editModal.classList.add('open')}
