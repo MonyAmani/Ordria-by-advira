@@ -378,7 +378,7 @@ function setupCustomerNameSuggestions(){
 function addBatch(){let sid=storeSelect.value,p=productSelect.value?products.find(x=>x.id===productSelect.value):null,pname=p?p.name:newProduct.value.trim(),pr=p?Number(p.price):Number(price.value),ns=names.value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!sid||!pname||!pr||!ns.length)return alert('اختاري المتجر واكتبي/اختاري المنتج والسعر والأسماء.');ns.forEach(n=>orders.push({id:'o_'+Date.now()+Math.random(),storeId:sid,name:n,product:pname,price:pr,createdAt:new Date().toISOString()}));if(!p&&!products.some(x=>x.name===pname&&Number(x.price)===pr))products.push({id:'p_'+Date.now()+Math.random(),name:pname,price:pr});persist();clearForm(true);alert('تم حفظ '+ns.length+' طلب ❤️')}
 function clearForm(keep=true){let sid=storeSelect.value;productSelect.value='';newProduct.value='';price.value='';names.value='';if(keep)storeSelect.value=sid}
 function groups(){let m={};orders.forEach(o=>{let k=o.storeId+'||'+o.name.trim();(m[k]??=[]).push(o)});return m}
-function renderCustomers(){let q=(customerSearch.value||'').trim().toLowerCase(),m=groups(),arr=Object.keys(m).filter(k=>m[k][0].name.toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>x.id===o.storeId)||{name:'غير محدد'},t=a.reduce((x,y)=>x+y.price,0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${a.length} منتج • <b>$${t.toFixed(2)}</b></div></div><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button></div>`}).join(''):'<p class="small">لا توجد نتائج.</p>'}
+function renderCustomers(){let q=(customerSearch.value||'').trim().toLowerCase(),m=groups(),arr=Object.keys(m).filter(k=>m[k][0].name.toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>x.id===o.storeId)||{name:'غير محدد'},t=a.reduce((x,y)=>x+y.price,0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${a.length} منتج • <b>$${t.toFixed(2)}</b></div></div><button class="secondary" onclick="editCustomer('${encodeURIComponent(o.name)}')">✏️ تعديل الاسم</button><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button></div>`}).join(''):'<p class="small">لا توجد نتائج.</p>'}
 
 function adjustOrderCustomerQty(storeId,productName,customerName,delta){
   const list=orders||[];
@@ -412,6 +412,45 @@ function adjustOrderCustomerQty(storeId,productName,customerName,delta){
   if(typeof renderAll==='function') renderAll();
   if(typeof renderOrders==='function') renderOrders();
 }
+function renameCustomer(oldName,newName){
+  oldName=String(oldName||'').trim();
+  newName=String(newName||'').trim();
+  if(!oldName||!newName||oldName===newName)return;
+  const list=orders||[];
+  let changed=0;
+  list.forEach(o=>{
+    const n=String(o.name||o.customerName||o.customer||'').trim();
+    if(n===oldName){
+      if('name' in o || (!('customerName' in o)&&!('customer' in o))) o.name=newName;
+      else if('customerName' in o) o.customerName=newName;
+      else o.customer=newName;
+      changed++;
+    }
+  });
+  if(customers && typeof customers==='object' && !Array.isArray(customers)){
+    const oldData=customers[oldName]||{};
+    const newData=customers[newName]||{};
+    customers[newName]={...oldData,...newData};
+    if(oldName!==newName) delete customers[oldName];
+  }
+  if(changed){
+    persist();
+    alert('تم تعديل اسم العميلة في '+changed+' طلب ❤️');
+  }
+}
+function editOrderCustomerName(storeId,productName,customerName){
+  const oldName=String(customerName||'').trim();
+  if(!oldName)return;
+  const newName=prompt('اكتبي اسم العميلة الصحيح:',oldName);
+  if(newName===null)return;
+  const clean=String(newName).trim();
+  if(!clean){alert('اسم العميلة لا يمكن أن يكون فارغًا.');return;}
+  if(clean===oldName)return;
+  const ok=confirm('تعديل اسم «'+oldName+'» إلى «'+clean+'» في كل طلباتها؟');
+  if(!ok)return;
+  renameCustomer(oldName,clean);
+}
+
 function removeOrderCustomer(storeId,productName,customerName){
   const list=orders||[];
   for(let i=list.length-1;i>=0;i--){
@@ -525,6 +564,7 @@ function renderOrders(){
                 <span class="orders-customer-controls">
                   <button type="button" title="إنقاص قطعة" onclick="adjustOrderCustomerQty('${String(selectedStoreId).replace(/'/g,"\\'")}','${String(selectedProduct).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}',-1)">−</button>
                   <button type="button" title="زيادة قطعة" onclick="adjustOrderCustomerQty('${String(selectedStoreId).replace(/'/g,"\\'")}','${String(selectedProduct).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}',1)">+</button>
+                  <button type="button" title="تعديل اسم العميلة" onclick="editOrderCustomerName('${String(selectedStoreId).replace(/'/g,"\\'")}','${String(selectedProduct).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}')">✏️</button>
                   <button type="button" class="remove" title="إزالة العميلة بالكامل" onclick="removeOrderCustomer('${String(selectedStoreId).replace(/'/g,"\\'")}','${String(selectedProduct).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}')">إزالة</button>
                 </span>
               </div>`).join('')
