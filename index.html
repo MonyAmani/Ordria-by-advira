@@ -890,7 +890,8 @@ function invoice(sidEnc,nEnc,dateEnc){
   renderInvoice(sid,n,selectedDate,availableDates);
 }
 function renderInvoice(sid,n,selectedDate,availableDates){
-  selectedDate=normalizeOrderDate(selectedDate)||todayLocalDate();
+  const allMode=selectedDate==='__ALL__';
+  selectedDate=allMode?'__ALL__':(normalizeOrderDate(selectedDate)||todayLocalDate());
   const customerOrders=orders.filter(o=>{
     const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(n);
     if(!sameName)return false;
@@ -898,7 +899,6 @@ function renderInvoice(sid,n,selectedDate,availableDates){
     return String(o.storeId||'')===String(sid)|| (st&&String(st.id)===String(sid));
   });
   const dates=[...new Set(customerOrders.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
-  const allMode=selectedDate==='__ALL__';
   const a=allMode?customerOrders:customerOrders.filter(o=>orderEffectiveDate(o)===selectedDate);
   const s=stores.find(x=>String(x.id)===String(sid))||findStoreForOrder(customerOrders[0])||{name:'متجر',phone:'',info:''};
 
