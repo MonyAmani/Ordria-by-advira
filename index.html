@@ -318,8 +318,16 @@ function refreshCustomerDatalist(){
 }
 function getSavedCustomerNames(){
   const set=new Set();
-  (orders||[]).forEach(o=>{const n=String(o.name||o.customerName||o.customer||'').trim();if(n)set.add(n)});
-  (customers||[]).forEach(c=>{const n=String(c.name||'').trim();if(n)set.add(n)});
+  const orderList=Array.isArray(orders)?orders:Object.values(orders||{});
+  const customerList=Array.isArray(customers)?customers:Object.values(customers||{});
+  orderList.forEach(o=>{
+    const n=String(o?.name||o?.customerName||o?.customer||'').trim();
+    if(n)set.add(n);
+  });
+  customerList.forEach(c=>{
+    const n=String(c?.name||'').trim();
+    if(n)set.add(n);
+  });
   return [...set].sort((a,b)=>a.localeCompare(b,'ar'));
 }
 function setupCustomerNameSuggestions(){
@@ -334,7 +342,10 @@ function setupCustomerNameSuggestions(){
     const prefix=(lines[lines.length-1]||'').trim();
     if(prefix.length<1){close();return;}
     const q=prefix.toLowerCase();
-    const matches=getSavedCustomerNames().filter(n=>n.toLowerCase().startsWith(q)).slice(0,12);
+    const all=getSavedCustomerNames();
+    const starts=all.filter(n=>n.toLowerCase().startsWith(q));
+    const contains=all.filter(n=>!n.toLowerCase().startsWith(q) && n.toLowerCase().includes(q));
+    const matches=starts.concat(contains).slice(0,12);
     if(!matches.length){close();return;}
     box.innerHTML=matches.map(n=>`<button type="button" class="customer-suggestion" data-name="${esc(n)}">👤 ${esc(n)}</button>`).join('');
     box.classList.add('open');
