@@ -129,7 +129,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 
 <section id="add" class="view active"><div class="grid">
 <div class="card"><h2>إضافة منتج وطلبات</h2>
-<label>المتجر</label><select id="storeSelect" onchange="renderProductSelect()"></select>
+<label>المتجر</label><select id="storeSelect" onchange="renderProductSelect();refreshContinueInvoiceDates()"></select>
 <label>المنتج المحفوظ</label><select id="productSelect" onchange="fillPrice()"><option value="">-- اختاري المنتج --</option></select>
 <label>أو منتج جديد</label><input id="newProduct" placeholder="مثال: عطر Burberry">
 <label>السعر</label><input id="price" type="number" step="0.01" placeholder="15">
@@ -139,8 +139,11 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
   <div id="customerSuggestions" class="customer-suggestions"></div>
 </div>
 <div class="small">اكتبي كل عميلة في سطر. لو العميلة واخدة أكتر من قطعة اكتبي بعد اسمها + والعدد، مثل: مني +4 = ٤ قطع. الاسم فقط = قطعة واحدة.</div>
-<div class="field"><label>📅 تاريخ الطلب</label><input id="orderDate" type="date"></div><div class="actions"><button class="gold" onclick="addBatch()">💾 حفظ الطلبات</button><button class="secondary" onclick="clearForm()">مسح</button></div>
-<div class="hint">💡 بعد الحفظ يفضل <b>نفس المتجر</b> مختارًا؛ غيري المنتج والأسماء فقط وكمّلي.</div>
+<div class="field"><label>🧾 نوع الفاتورة لهذا الإدخال</label><div class="actions" style="margin-top:6px"><button type="button" id="newInvoiceModeBtn" class="gold" onclick="setEntryInvoiceMode('new')">🆕 فاتورة جديدة</button><button type="button" id="continueInvoiceModeBtn" class="secondary" onclick="setEntryInvoiceMode('continue')">↩️ استكمال فاتورة قديمة</button></div><div id="entryInvoiceModeText" class="small" style="margin-top:8px">سيتم إنشاء الإدخال على تاريخ جديد (تاريخ اليوم).</div></div>
+<div class="field"><label>📅 تاريخ الطلب / الفاتورة</label><input id="orderDate" type="date" onchange="syncEntryInvoiceModeFromDate()"></div>
+<div id="continueInvoiceBox" class="field" style="display:none"><label>📂 اختاري تاريخ الفاتورة القديمة</label><select id="continueInvoiceDate" onchange="applyContinueInvoiceDate()"><option value="">-- اختاري التاريخ --</option></select></div>
+<div class="actions"><button class="gold" onclick="addBatch()">💾 حفظ الطلبات</button><button class="secondary" onclick="clearForm()">مسح</button></div>
+<div class="hint">💡 <b>فاتورة جديدة</b> = تاريخ جديد مستقل. <b>استكمال فاتورة قديمة</b> = اختاري تاريخًا سابقًا، وسيُضاف الطلب لنفس حساب ذلك التاريخ.</div>
 </div>
 <div class="card"><h2>ملخص سريع</h2><div class="stats">
 <div class="stat">الطلبات<b id="statOrders">0</b></div><div class="stat">العميلات<b id="statCustomers">0</b></div><div class="stat">الإجمالي<b id="statTotal">$0.00</b></div>
@@ -455,19 +458,68 @@ function parseCustomerLine(line){
   }
   return {name:raw,qty:1};
 }
+function entryInvoiceDates(){
+  const sid=String(document.getElementById('storeSelect')?.value||'');
+  const dates=[...new Set((orders||[]).filter(o=>String(o.storeId||'')===sid).map(orderEffectiveDate).filter(Boolean))].sort().reverse();
+  return dates;
+}
+function refreshContinueInvoiceDates(){
+  const sel=document.getElementById('continueInvoiceDate'); if(!sel)return;
+  const current=sel.value;
+  const dates=entryInvoiceDates();
+  sel.innerHTML='<option value="">-- اختاري التاريخ --</option>'+dates.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  if(current && dates.includes(current)) sel.value=current;
+}
+function setEntryInvoiceMode(mode){
+  const newBtn=document.getElementById('newInvoiceModeBtn'), oldBtn=document.getElementById('continueInvoiceModeBtn'), box=document.getElementById('continueInvoiceBox'), date=document.getElementById('orderDate'), txt=document.getElementById('entryInvoiceModeText');
+  if(!newBtn||!oldBtn||!box||!date||!txt)return;
+  window.entryInvoiceMode=mode;
+  if(mode==='continue'){
+    newBtn.classList.remove('gold'); newBtn.classList.add('secondary');
+    oldBtn.classList.remove('secondary'); oldBtn.classList.add('gold');
+    box.style.display='block'; refreshContinueInvoiceDates();
+    const dates=entryInvoiceDates();
+    if(dates.length){ document.getElementById('continueInvoiceDate').value=dates[0]; date.value=dates[0]; }
+    txt.textContent='سيتم إضافة الطلب على الفاتورة القديمة التي تختارين تاريخها.';
+  }else{
+    newBtn.classList.remove('secondary'); newBtn.classList.add('gold');
+    oldBtn.classList.remove('gold'); oldBtn.classList.add('secondary');
+    box.style.display='none';
+    date.value=todayLocalDate();
+    txt.textContent='سيتم إنشاء إدخال جديد منفصل على تاريخ اليوم.';
+  }
+}
+function applyContinueInvoiceDate(){
+  const v=document.getElementById('continueInvoiceDate')?.value;
+  if(v){ const d=document.getElementById('orderDate'); if(d)d.value=v; }
+}
+function syncEntryInvoiceModeFromDate(){
+  const mode=window.entryInvoiceMode||'new';
+  if(mode==='continue')applyContinueInvoiceDate();
+}
 function addBatch(){
   let sid=String(storeSelect.value||''),p=productSelect.value?products.find(x=>String(x.id)===String(productSelect.value)):null,
       pname=p?p.name:newProduct.value.trim(),pr=p?Number(p.price):Number(price.value),
       lines=names.value.split(/\n+/).map(x=>x.trim()).filter(Boolean),
       parsed=lines.map(parseCustomerLine).filter(Boolean),
-      orderDate=(document.getElementById('orderDate')?.value)||new Date().toISOString().slice(0,10);
+      orderDate=(document.getElementById('orderDate')?.value)||todayLocalDate(),
+      mode=window.entryInvoiceMode||'new';
   if(!sid||!pname||!pr||!parsed.length)return alert('اختاري المتجر واكتبي/اختاري المنتج والسعر والأسماء.');
+  if(mode==='continue'){
+    const oldDate=document.getElementById('continueInvoiceDate')?.value||'';
+    if(!oldDate)return alert('اختاري تاريخ الفاتورة القديمة التي تريدين الاستكمال عليها.');
+    orderDate=oldDate;
+  }else{
+    if(!orderDate)return alert('اختاري تاريخ الفاتورة الجديدة.');
+  }
   parsed.forEach(item=>orders.push({id:'o_'+Date.now()+Math.random(),storeId:sid,name:item.name,product:pname,price:pr,qty:item.qty,orderDate,createdAt:new Date().toISOString()}));
   if(!p&&!products.some(x=>String(x.storeId)===String(sid)&&String(x.name).trim()===String(pname).trim()&&Number(x.price)===pr))products.push({id:'p_'+Date.now()+Math.random(),name:pname,price:pr,storeId:sid});
   persist();clearForm(true);
+  refreshContinueInvoiceDates();
   const pieces=parsed.reduce((sum,x)=>sum+x.qty,0);
-  alert('تم حفظ '+pieces+' قطعة لـ '+parsed.length+' عميلة ❤️');
+  alert((mode==='continue'?'تم الاستكمال على فاتورة تاريخ ':'تم إنشاء فاتورة جديدة بتاريخ ')+orderDate+' — تم حفظ '+pieces+' قطعة لـ '+parsed.length+' عميلة ❤️');
 }
+
 function clearForm(keep=true){let sid=storeSelect.value;productSelect.value='';newProduct.value='';price.value='';names.value='';if(keep)storeSelect.value=sid}
 function groups(){let m={};orders.forEach(o=>{let k=o.storeId+'||'+o.name.trim();(m[k]??=[]).push(o)});return m}
 function renderCustomers(){let q=(customerSearch.value||'').trim().toLowerCase(),m=groups(),arr=Object.keys(m).filter(k=>m[k][0].name.toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>x.id===o.storeId)||{name:'غير محدد'},t=a.reduce((x,y)=>x+y.price,0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${a.length} منتج • <b>$${t.toFixed(2)}</b></div></div><button class="secondary" onclick="editCustomer('${encodeURIComponent(o.name)}')">✏️ تعديل الاسم</button><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button></div>`}).join(''):'<p class="small">لا توجد نتائج.</p>'}
@@ -955,6 +1007,14 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <script>document.addEventListener('DOMContentLoaded',function(){try{setupCustomerNameSuggestions();}catch(e){}});</script>
+<script id="ORDRIA_ENTRY_INVOICE_MODE">
+(function(){
+  window.entryInvoiceMode='new';
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(function(){try{setEntryInvoiceMode('new');refreshContinueInvoiceDates();}catch(e){}},50);
+  });
+})();
+</script>
 <script id="ORDRIA_AUTO_ORDER_DATE">
 (function(){
   const pad=n=>String(n).padStart(2,'0');
