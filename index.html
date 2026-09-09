@@ -52,6 +52,25 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 .orders-customer-qty{font-size:13px;color:#777}
 .orders-empty{padding:14px;color:#777;font-size:14px}
 </style>
+
+<style id="orders-selector-v2">
+.orders-selector-v2{margin-top:12px;display:grid;gap:12px}
+.orders-select-card{border:1px solid #e3e3e3;border-radius:14px;background:#fff;overflow:hidden}
+.orders-select-head{padding:13px 15px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.orders-select-button{width:100%;border:0;border-top:1px solid #eee;background:#fafafa;text-align:right;padding:14px 15px;font-size:16px;cursor:pointer}
+.orders-select-button:hover{background:#fff9ed}
+.orders-options{display:none;padding:8px;border-top:1px solid #eee;background:#fff}
+.orders-options.open{display:block}
+.orders-option{display:block;width:100%;text-align:right;background:#fff;border:0;border-bottom:1px solid #eee;padding:12px 10px;cursor:pointer;font-size:15px}
+.orders-option:last-child{border-bottom:0}
+.orders-option:hover{background:#fff9ed}
+.orders-disabled{opacity:.5;pointer-events:none}
+.orders-selected{font-weight:800}
+.orders-results{border:1px solid #e3e3e3;border-radius:14px;background:#fff;padding:14px}
+.orders-result-row{display:flex;justify-content:space-between;padding:11px 4px;border-bottom:1px solid #eee}
+.orders-result-row:last-child{border-bottom:0}
+.orders-no-result{color:#777;padding:8px 4px}
+</style>
 </head>
 <body>
 <header><div class="brand"><div class="logo">O</div><div><h1>Ordria</h1><p>by Advira • Smart Orders. Simple Invoices.</p></div></div></header>
@@ -292,63 +311,105 @@ function renderOrders(){
   const box=document.getElementById('ordersList')||document.getElementById('orders');
   if(!box)return;
 
-  const storeMap=new Map();
-  (typeof orders!=='undefined'?orders:[]).forEach(o=>{
-    const store=String(o.store||o.storeName||o.shop||'بدون متجر').trim()||'بدون متجر';
-    const product=String(o.product||o.productName||o.item||'بدون منتج').trim()||'بدون منتج';
-    const name=String(o.name||o.customerName||o.customer||'').trim();
-    const qty=Number(o.qty||o.quantity||1)||1;
+  const rows=(typeof orders!=='undefined'?orders:[]);
+  const stores=[...new Set(rows.map(o=>String(o.store||o.storeName||o.shop||'بدون متجر').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
 
-    if(!storeMap.has(store))storeMap.set(store,new Map());
-    const pm=storeMap.get(store);
-    if(!pm.has(product))pm.set(product,new Map());
-    if(name){
-      const cm=pm.get(product);
-      cm.set(name,(cm.get(name)||0)+qty);
-    }
-  });
-
-  const stores=[...storeMap.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
-  if(!stores.length){
-    box.innerHTML='<div class="orders-empty">لا توجد طلبات مسجلة حتى الآن.</div>';
-    return;
-  }
-
-  box.innerHTML='<div class="orders-browser">'+stores.map(([store,pm],si)=>{
-    const products=[...pm.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
-    return `<div class="orders-store" data-store-index="${si}">
-      <div class="orders-store-head">
-        <span>🏪 ${esc(store)}</span><span class="orders-arrow">▶</span>
+  box.innerHTML=`
+    <div class="orders-selector-v2">
+      <div class="orders-select-card">
+        <div class="orders-select-head"><span>🏪 المتجر</span><span id="ordersStoreValue">اختاري المتجر</span></div>
+        <button type="button" class="orders-select-button" id="ordersStoreButton">اضغطي لاختيار المتجر ▾</button>
+        <div class="orders-options" id="ordersStoreOptions"></div>
       </div>
-      <div class="orders-store-body">
-        ${products.length?products.map(([product,cm],pi)=>{
-          const customers=[...cm.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
-          return `<div class="orders-product" data-product-index="${pi}">
-            <div class="orders-product-head">
-              <span>📦 ${esc(product)}</span><span class="orders-arrow">▶</span>
-            </div>
-            <div class="orders-product-body">
-              ${customers.length?customers.map(([name,qty])=>
-                `<div class="orders-customer"><span class="orders-customer-name">👤 ${esc(name)}</span><span class="orders-customer-qty">${qty} قطعة</span></div>`
-              ).join(''):'<div class="orders-empty">لا توجد أسماء مسجلة لهذا المنتج.</div>'}
-            </div>
-          </div>`;
-        }).join(''):'<div class="orders-empty">لا توجد منتجات لهذا المتجر.</div>'}
+
+      <div class="orders-select-card orders-disabled" id="ordersProductCard">
+        <div class="orders-select-head"><span>📦 المنتج</span><span id="ordersProductValue">اختاري المنتج</span></div>
+        <button type="button" class="orders-select-button" id="ordersProductButton">اختاري المتجر أولًا ▾</button>
+        <div class="orders-options" id="ordersProductOptions"></div>
+      </div>
+
+      <div class="orders-select-card orders-disabled" id="ordersCustomerCard">
+        <div class="orders-select-head"><span>👤 العملاء</span><span id="ordersCustomerValue">اختاري المنتج</span></div>
+        <button type="button" class="orders-select-button" id="ordersCustomerButton">اختاري المنتج أولًا ▾</button>
+        <div class="orders-options" id="ordersCustomerOptions"></div>
+      </div>
+
+      <div class="orders-results" id="ordersResults">
+        <div class="orders-no-result">اختاري المتجر ثم المنتج لعرض العملاء.</div>
       </div>
     </div>`;
-  }).join('');
 
-  const storesEls=box.querySelectorAll('.orders-store');
-  storesEls.forEach(storeEl=>{
-    storeEl.querySelector('.orders-store-head').addEventListener('click',()=>{
-      storeEl.classList.toggle('orders-open');
-    });
-    storeEl.querySelectorAll('.orders-product').forEach(productEl=>{
-      productEl.querySelector('.orders-product-head').addEventListener('click',e=>{
-        e.stopPropagation();
-        productEl.classList.toggle('open');
+  const storeOptions=document.getElementById('ordersStoreOptions');
+  const productOptions=document.getElementById('ordersProductOptions');
+  const customerOptions=document.getElementById('ordersCustomerOptions');
+  const productCard=document.getElementById('ordersProductCard');
+  const customerCard=document.getElementById('ordersCustomerCard');
+  const storeButton=document.getElementById('ordersStoreButton');
+  const productButton=document.getElementById('ordersProductButton');
+  const customerButton=document.getElementById('ordersCustomerButton');
+  const results=document.getElementById('ordersResults');
+
+  let selectedStore='', selectedProduct='';
+
+  function closeAll(){[storeOptions,productOptions,customerOptions].forEach(x=>x.classList.remove('open'));}
+
+  storeOptions.innerHTML=stores.length?stores.map(s=>`<button type="button" class="orders-option" data-store="${esc(s)}">🏪 ${esc(s)}</button>`).join(''):'<div class="orders-no-result">لا توجد متاجر مسجلة.</div>';
+  storeButton.onclick=()=>{productOptions.classList.remove('open');customerOptions.classList.remove('open');storeOptions.classList.toggle('open')};
+
+  storeOptions.querySelectorAll('[data-store]').forEach(btn=>{
+    btn.onclick=()=>{
+      selectedStore=btn.getAttribute('data-store');
+      selectedProduct='';
+      document.getElementById('ordersStoreValue').textContent=selectedStore;
+      storeButton.textContent='✓ '+selectedStore+' — تغيير ▾';
+      storeOptions.classList.remove('open');
+
+      const products=[...new Set(rows.filter(o=>String(o.store||o.storeName||o.shop||'').trim()===selectedStore)
+        .map(o=>String(o.product||o.productName||o.item||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+
+      productCard.classList.remove('orders-disabled');
+      customerCard.classList.add('orders-disabled');
+      document.getElementById('ordersProductValue').textContent='اختاري المنتج';
+      document.getElementById('ordersCustomerValue').textContent='اختاري المنتج';
+      productButton.textContent='اضغطي لاختيار المنتج ▾';
+      customerButton.textContent='اختاري المنتج أولًا ▾';
+      customerOptions.innerHTML='';
+      results.innerHTML='<div class="orders-no-result">اختاري المنتج لعرض العملاء.</div>';
+
+      productOptions.innerHTML=products.length?products.map(x=>`<button type="button" class="orders-option" data-product="${esc(x)}">📦 ${esc(x)}</button>`).join(''):'<div class="orders-no-result">لا توجد منتجات لهذا المتجر.</div>';
+
+      productButton.onclick=()=>{storeOptions.classList.remove('open');customerOptions.classList.remove('open');productOptions.classList.toggle('open')};
+      productOptions.querySelectorAll('[data-product]').forEach(pb=>{
+        pb.onclick=()=>{
+          selectedProduct=pb.getAttribute('data-product');
+          document.getElementById('ordersProductValue').textContent=selectedProduct;
+          productButton.textContent='✓ '+selectedProduct+' — تغيير ▾';
+          productOptions.classList.remove('open');
+
+          const cm=new Map();
+          rows.filter(o=>String(o.store||o.storeName||o.shop||'').trim()===selectedStore &&
+                          String(o.product||o.productName||o.item||'').trim()===selectedProduct)
+            .forEach(o=>{
+              const name=String(o.name||o.customerName||o.customer||'').trim();
+              if(name)cm.set(name,(cm.get(name)||0)+(Number(o.qty||o.quantity||1)||1));
+            });
+
+          const customers=[...cm.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
+          customerCard.classList.remove('orders-disabled');
+          customerButton.textContent='اضغطي لعرض العملاء ▾';
+          customerOptions.innerHTML=customers.length
+            ? customers.map(([n,q])=>`<button type="button" class="orders-option" data-customer="${esc(n)}">👤 ${esc(n)} — ${q} قطعة</button>`).join('')
+            : '<div class="orders-no-result">لا يوجد عملاء لهذا المنتج.</div>';
+
+          results.innerHTML=customers.length
+            ? '<b>عملاء المنتج</b>'+customers.map(([n,q])=>`<div class="orders-result-row"><span>👤 ${esc(n)}</span><strong>${q} قطعة</strong></div>`).join('')
+            : '<div class="orders-no-result">لا يوجد عملاء مسجلون لهذا المنتج.</div>';
+
+          customerButton.onclick=()=>{storeOptions.classList.remove('open');productOptions.classList.remove('open');customerOptions.classList.toggle('open')};
+          customerOptions.querySelectorAll('[data-customer]').forEach(cb=>cb.onclick=()=>{customerButton.textContent='✓ '+cb.getAttribute('data-customer')+' — تغيير ▾';customerOptions.classList.remove('open')});
+        };
       });
-    });
+    };
   });
 }
 
