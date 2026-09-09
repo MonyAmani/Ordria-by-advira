@@ -104,7 +104,23 @@ const CLOUD_CFG='ordria_cloud_cfg_v1';
 function cloudPayload(){return {orders,stores,products,customers};}
 function setCloudStatus(t){let e=document.getElementById('cloudStatus');if(e)e.textContent='الحالة: '+t}
 function saveCloudConfig(){localStorage.setItem(CLOUD_CFG,JSON.stringify({url:sbUrl.value.trim(),key:sbKey.value.trim()}));initCloud()}
-async function initCloud(){try{let c=JSON.parse(localStorage.getItem(CLOUD_CFG)||'{}');if(!c.url||!c.key){setCloudStatus('اكتبي Project URL و Anon Key أولاً');return}if(!window.supabase){setCloudStatus('تعذر تحميل مكتبة السحابة');return}sb=window.supabase.createClient(c.url,c.key);const recoveryFromUrl=location.hash.includes('type=recovery')||location.search.includes('type=recovery');let r=await sb.auth.getSession();cloudUser=r.data.session?.user||null;if(recoveryFromUrl){document.getElementById('recoveryBox').style.display='block';setCloudStatus('اكتبي كلمة السر الجديدة ثم احفظيها');try{history.replaceState({},document.title,location.pathname+location.search.replace(/[?&]type=recovery/g,''))}catch(e){}}else{setCloudStatus(cloudUser?'متصل • '+cloudUser.email:'متصل — سجلي الدخول');if(cloudUser) await cloudLoad()}sb.auth.onAuthStateChange(async (_e,session)=>{cloudUser=session?.user||null;if(_e==='PASSWORD_RECOVERY'){document.getElementById('recoveryBox').style.display='block';setCloudStatus('اكتبي كلمة السر الجديدة ثم احفظيها')}else{setCloudStatus(cloudUser?'متصل • '+cloudUser.email:'متصل — سجلي الدخول');if(cloudUser) await cloudLoad()}})}catch(e){setCloudStatus('تعذر الاتصال: '+(e.message||e))}}
+async function initCloud(){try{let c=JSON.parse(localStorage.getItem(CLOUD_CFG)||'{}');if(!c.url||!c.key){setCloudStatus('اكتبي Project URL و Anon Key أولاً');return}if(!window.supabase){setCloudStatus('تعذر تحميل مكتبة السحابة');return}sb=window.supabase.createClient(c.url,c.key);
+const hash=new URLSearchParams(location.hash.replace(/^#/,'&'));
+const recoveryFromUrl=hash.get('type')==='recovery'||new URLSearchParams(location.search).get('type')==='recovery';
+const access_token=hash.get('access_token');
+const refresh_token=hash.get('refresh_token');
+if(recoveryFromUrl && access_token && refresh_token){
+  const sr=await sb.auth.setSession({access_token,refresh_token});
+  if(sr.error) throw sr.error;
+}
+let r=await sb.auth.getSession();
+cloudUser=r.data.session?.user||null;
+if(recoveryFromUrl){
+  if(cloudUser){document.getElementById('recoveryBox').style.display='block';setCloudStatus('اكتبي كلمة السر الجديدة ثم احفظيها');}
+  else{setCloudStatus('جارٍ تجهيز رابط استرجاع كلمة السر...');}
+}else{setCloudStatus(cloudUser?'متصل • '+cloudUser.email:'متصل — سجلي الدخول');if(cloudUser) await cloudLoad()}
+sb.auth.onAuthStateChange(async (_e,session)=>{cloudUser=session?.user||null;if(_e==='PASSWORD_RECOVERY'||(recoveryFromUrl&&cloudUser)){document.getElementById('recoveryBox').style.display='block';setCloudStatus('اكتبي كلمة السر الجديدة ثم احفظيها')}else{setCloudStatus(cloudUser?'متصل • '+cloudUser.email:'متصل — سجلي الدخول');if(cloudUser) await cloudLoad()}})}catch(e){setCloudStatus('تعذر الاتصال: '+(e.message||e))}}
+
 async function signUpCloud(){try{if(!sb)await initCloud();if(!sb)return;let r=await sb.auth.signUp({email:authEmail.value.trim(),password:authPass.value,emailRedirectTo:location.origin + location.pathname});if(r.error)throw r.error;alert('تم إنشاء الحساب. لو ظهر طلب تأكيد الإيميل، افتحي رسالة Supabase وأكدي الحساب.')}catch(e){alert(e.message)}}
 async function signInCloud(){try{if(!sb)await initCloud();if(!sb)return;let r=await sb.auth.signInWithPassword({email:authEmail.value.trim(),password:authPass.value});if(r.error)throw r.error;cloudUser=r.data.user;await cloudLoad();setCloudStatus('متصل • '+cloudUser.email);alert('تم تسجيل الدخول ❤️')}catch(e){alert(e.message)}}
 async function updatePasswordCloud(){try{if(!sb)await initCloud();if(!sb)return;const email=authEmail.value.trim();if(!email){alert('اكتبي الإيميل أولاً.');return}const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(r.error)throw r.error;alert('تم إرسال رابط تغيير كلمة السر إلى الإيميل ❤️ افتحي الرسالة واضغطي الرابط.');}catch(e){alert(e.message)}}
