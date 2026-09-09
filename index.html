@@ -1177,8 +1177,60 @@ function renderInvoiceHub(){
     <div class="invoice-hub-card"><h3>📂 القسم</h3><select id="invoiceHubMode" onchange="renderInvoiceHub()"><option value="current" ${mode==='current'?'selected':''}>🧾 الفواتير الحالية</option><option value="archive" ${mode==='archive'?'selected':''}>📦 الأرشيف</option></select><div class="small" style="margin-top:7px">الأرشيف خاص بهذا المتجر فقط ولا يحذف أي بيانات.</div></div>
     <div class="invoice-hub-card"><h3>📅 تاريخ الفاتورة</h3><select id="invoiceHubDate" onchange="renderInvoiceHub()"><option value="">-- اختاري تاريخ الفاتورة --</option>${listDates.map(d=>`<option value="${esc(d)}" ${d===selectedDate?'selected':''}>${esc(invoiceDateLabel(d))}</option>`).join('')}</select>${selectedDate?`<div style="margin-top:9px"><span class="invoice-month-pill ${isMonthArchived(sid,selectedMonth)?'archived':''}">${isMonthArchived(sid,selectedMonth)?'📦 مؤرشف':'🟢 حالي'}</span></div>`:''}</div>
   </div>
-  ${selectedDate?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(invoiceDateLabel(selectedDate))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(selectedMonth)}')">${isMonthArchived(sid,selectedMonth)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div>
+  ${selectedDate?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(invoiceDateLabel(selectedDate))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="gold" onclick="saveAllCurrentInvoicesAsImages('${esc(sid)}','${esc(selectedDate)}')">📸 حفظ كل الفواتير كصور</button><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(selectedMonth)}')">${isMonthArchived(sid,selectedMonth)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div></div>
   <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" data-sid="${esc(String(sid))}" data-name="${esc(c.name)}" data-date="${esc(selectedDate)}" onclick="openInvoiceFromHubButton(this)">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير في هذا التاريخ.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وتاريخ الفاتورة لعرض الفواتير.</div>'}`;
+}
+async function saveAllCurrentInvoicesAsImages(sid,date){
+  try{
+    sid=String(sid||''); date=normalizeOrderDate(date)||'';
+    if(!sid||!date){alert('اختاري تاريخ الفاتورة أولًا ❤️');return;}
+    const archived=isMonthArchived(sid,monthKey(date));
+    if(archived){alert('التاريخ ده موجود في الأرشيف 🔒\nاختاري تاريخًا من الفواتير الحالية.');return;}
+    const data=orders.filter(o=>{
+      const st=findStoreForOrder(o);
+      return st&&String(st.id)===sid&&orderEffectiveDate(o)===date;
+    });
+    const customersBy={};
+    data.forEach(o=>{
+      const key=cleanKey(o.name||o.customerName||o.customer||'');
+      if(!key)return;
+      if(!customersBy[key])customersBy[key]={name:String(o.name||o.customerName||o.customer||'').trim()};
+    });
+    const customers=Object.values(customersBy).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+    if(!customers.length){alert('لا توجد فواتير مسجلة لهذا التاريخ.');return;}
+    if(!confirm(`هيتم حفظ ${customers.length} صورة فاتورة على الجهاز بتاريخ ${invoiceDateLabel(date)}.\nكمّلي؟`))return;
+    if(typeof html2canvas!=='function')throw new Error('html2canvas');
+    const holder=document.createElement('div');
+    holder.style.cssText='position:fixed;left:-100000px;top:0;width:900px;background:#fff;z-index:-1;';
+    document.body.appendChild(holder);
+    let saved=0;
+    for(const c of customers){
+      const ctx=getInvoiceContext(sid,encodeURIComponent(c.name));
+      const built=buildInvoiceMarkup(sid,c.name,date,ctx.availableDates);
+      holder.innerHTML=built.html;
+      const el=holder.querySelector('.invoice');
+      if(!el)continue;
+      const canvas=await html2canvas(el,{scale:2,backgroundColor:'#fff',useCORS:true,logging:false,ignoreElements:node=>node.classList?.contains('no-print')});
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png',1));
+      if(!blob)continue;
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`Ordry-${cleanFileName(c.name)}-${date}.png`;
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+      saved++;
+      await new Promise(r=>setTimeout(r,350));
+    }
+    holder.remove();
+    alert(`تم حفظ ${saved} صورة فاتورة ❤️\nكل عميلة في صورة منفصلة، وتقدري تشاركيهم من الجهاز.`);
+  }catch(e){
+    console.error(e);
+    document.querySelectorAll('[data-ordry-batch-holder]').forEach(x=>x.remove());
+    alert('تعذر حفظ صور الفواتير. جربي مرة أخرى ❤️');
+  }
+}
+function cleanFileName(name){
+  return String(name||'عميلة').trim().replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,'-').slice(0,80)||'عميلة';
 }
 function getInvoiceContext(sid,name,dateEnc){
   const allCustomerOrders=orders.filter(o=>{
