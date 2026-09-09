@@ -297,6 +297,8 @@ const OK='ordria_orders_v4',SK='ordria_stores_v4',PK='ordria_products_v4';
 let orders=JSON.parse(localStorage.getItem(OK)||'[]'),stores=JSON.parse(localStorage.getItem(SK)||'[]'),products=JSON.parse(localStorage.getItem(PK)||'[]'),customers=JSON.parse(localStorage.getItem('ordria_customers_v5')||'{}'),editingId=null;
 if(!stores.length)stores=[{id:'s_'+Date.now(),name:'متجر جديد',phone:'',info:''}];
 function persist(){localStorage.setItem(OK,JSON.stringify(orders));localStorage.setItem(SK,JSON.stringify(stores));localStorage.setItem(PK,JSON.stringify(products));localStorage.setItem('ordria_customers_v5',JSON.stringify(customers));renderAll(); cloudSave().catch(()=>{})}
+function persistQuiet(){localStorage.setItem(OK,JSON.stringify(orders));localStorage.setItem(SK,JSON.stringify(stores));localStorage.setItem(PK,JSON.stringify(products));localStorage.setItem('ordria_customers_v5',JSON.stringify(customers)); cloudSave().catch(()=>{})}
+
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function show(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active')}
 function renderStoreSelect(){let old=storeSelect.value;storeSelect.innerHTML=stores.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');if(stores.some(s=>s.id===old))storeSelect.value=old}
@@ -407,37 +409,62 @@ function renderCustomers(){let q=(customerSearch.value||'').trim().toLowerCase()
 
 function adjustOrderCustomerQty(storeId,productName,customerName,delta){
   const list=orders||[];
-  // Find the matching order rows. Each customer line represents one unit in the current entry model.
   const matches=[];
   list.forEach((o,i)=>{
     if(String(o.storeId||'')===String(storeId||'') &&
        String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim() &&
-       String(o.name||o.customerName||o.customer||'').trim()===String(customerName||'').trim()){
-      matches.push(i);
-    }
+       String(o.name||o.customerName||o.customer||'').trim()===String(customerName||'').trim()) matches.push(i);
   });
+  if(!matches.length)return;
+  const i=matches[matches.length-1], o=list[i];
+  const q=Number(o.qty||o.quantity||1)||1;
+  let newTotal=0;
   if(delta>0){
-    // Add one more unit to the same product/customer.
-    if(matches.length){
-      const o=list[matches[matches.length-1]];
-      if('qty' in o) o.qty=(Number(o.qty)||1)+1;
-      else if('quantity' in o) o.quantity=(Number(o.quantity)||1)+1;
-      else o.qty=2;
-    }
-  }else if(delta<0 && matches.length){
-    const i=matches[matches.length-1], o=list[i];
-    const q=Number(o.qty||o.quantity||1)||1;
+    if('qty' in o) o.qty=q+1; else if('quantity' in o) o.quantity=q+1; else o.qty=q+1;
+  }else if(delta<0){
     if(q>1){
       if('qty' in o) o.qty=q-1; else if('quantity' in o) o.quantity=q-1; else o.qty=q-1;
     }else{
       list.splice(i,1);
     }
   }
+  newTotal=list.filter(x=>String(x.storeId||'')===String(storeId||'') && String(x.product||x.productName||x.item||'').trim()===String(productName||'').trim() && String(x.name||x.customerName||x.customer||'').trim()===String(customerName||'')).reduce((sum,x)=>sum+(Number(x.qty||x.quantity||1)||1),0);
   ordersViewState.storeId=String(storeId||'');
   ordersViewState.product=String(productName||'');
   ordersViewState.showCustomers=true;
-  if(typeof persist==='function') persist();
+  persistQuiet();
+  refreshOrdersCustomerUI(storeId,productName);
 }
+function refreshOrdersCustomerUI(storeId,productName){
+  const customerOptions=document.getElementById('ordersCustomerOptions');
+  const customerButton=document.getElementById('ordersCustomerButton');
+  const productValue=document.getElementById('ordersProductValue');
+  const productButton=document.getElementById('ordersProductButton');
+  if(!customerOptions||!customerButton||!productValue||!productButton)return;
+  const rows=orders||[];
+  const cm=new Map();
+  rows.filter(o=>String(o.storeId||'')===String(storeId||'') && String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim()).forEach(o=>{
+    const name=String(o.name||o.customerName||o.customer||'').trim();
+    if(name)cm.set(name,(cm.get(name)||0)+(Number(o.qty||o.quantity||1)||1));
+  });
+  const customers=[...cm.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
+  customerOptions.innerHTML=customers.length?customers.map(([n,q])=>`<div class="orders-option" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+    <span>👤 ${esc(n)} — <b>${q}</b> قطعة</span>
+    <span class="orders-customer-controls">
+      <button type="button" title="إنقاص قطعة" onclick="adjustOrderCustomerQty('${String(storeId).replace(/'/g,"\\'")}','${String(productName).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}',-1)">−</button>
+      <button type="button" title="زيادة قطعة" onclick="adjustOrderCustomerQty('${String(storeId).replace(/'/g,"\\'")}','${String(productName).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}',1)">+</button>
+      <button type="button" title="تعديل اسم العميلة" onclick="editOrderCustomerName('${String(storeId).replace(/'/g,"\\'")}','${String(productName).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}')">✏️</button>
+      <button type="button" class="remove" title="إزالة العميلة بالكامل" onclick="removeOrderCustomer('${String(storeId).replace(/'/g,"\\'")}','${String(productName).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}')">إزالة</button>
+    </span>
+  </div>`).join(''):'<div class="orders-no-result">لا يوجد عملاء لهذا المنتج.</div>';
+  const productTotal=rows.filter(o=>String(o.storeId||'')===String(storeId||'') && String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim()).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
+  productValue.textContent=productName+' — '+productTotal+' قطعة';
+  productButton.textContent='✓ '+productName+' — تغيير ▾';
+  customerButton.textContent='✓ العملاء — إخفاء ▴';
+  customerOptions.classList.add('open');
+  const customerCard=document.getElementById('ordersCustomerCard'); if(customerCard)customerCard.classList.remove('orders-disabled');
+}
+
 function renameCustomer(oldName,newName){
   oldName=String(oldName||'').trim();
   newName=String(newName||'').trim();
@@ -481,17 +508,15 @@ function removeOrderCustomer(storeId,productName,customerName){
   const list=orders||[];
   for(let i=list.length-1;i>=0;i--){
     const o=list[i];
-    if(String(o.storeId||'')===String(storeId||'') &&
-       String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim() &&
-       String(o.name||o.customerName||o.customer||'').trim()===String(customerName||'').trim()){
-      list.splice(i,1);
-    }
+    if(String(o.storeId||'')===String(storeId||'') && String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim() && String(o.name||o.customerName||o.customer||'').trim()===String(customerName||'').trim()) list.splice(i,1);
   }
   ordersViewState.storeId=String(storeId||'');
   ordersViewState.product=String(productName||'');
   ordersViewState.showCustomers=true;
-  if(typeof persist==='function') persist();
+  persistQuiet();
+  refreshOrdersCustomerUI(storeId,productName);
 }
+
 let ordersViewState={storeId:'',product:'',showCustomers:false};
 function renderOrders(){
   const box=document.getElementById('orderList');
