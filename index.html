@@ -631,7 +631,7 @@ function renderOrders(){
       sb.click();
       if(ordersViewState.product){
         const pb=[...productOptions.querySelectorAll('[data-product]')].find(x=>x.getAttribute('data-product')===ordersViewState.product);
-        if(pb) pb.click();
+        if(pb) { pb.click(); if(ordersViewState.showCustomers){ customerOptions.classList.add('open'); customerButton.textContent='✓ العملاء — إخفاء ▴'; } }
       }
     }
   }
