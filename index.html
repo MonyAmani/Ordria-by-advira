@@ -124,10 +124,7 @@ create policy "ordria_update_own" on public.ordria_data for update using (auth.u
 <div class="actions"><button class="gold" onclick="saveEdit()">حفظ التعديل</button><button class="secondary" onclick="closeEdit()">إلغاء</button></div>
 </div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">document.addEventListener('DOMContentLoaded',()=>refreshCustomerDatalist());
-
-
-function showProductCustomers(productName){
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">function showProductCustomers(productName){
   const modal=document.getElementById('productCustomerModal');
   const list=document.getElementById('productCustomerList');
   const title=document.getElementById('productCustomerTitle');
@@ -327,4 +324,58 @@ if ('serviceWorker' in navigator) {
     <div id="productCustomerList"></div>
   </div>
 </div>
+
+<script>
+/* ORDRIA_PRODUCT_CUSTOMERS_FIX */
+(function(){
+  window.showProductCustomers = function(productName){
+    const modal=document.getElementById('productCustomerModal');
+    const list=document.getElementById('productCustomerList');
+    const title=document.getElementById('productCustomerTitle');
+    const count=document.getElementById('productCustomerCount');
+    if(!modal||!list)return;
+    const target=String(productName||'').trim();
+    const map=new Map();
+    (window.orders||[]).forEach(function(o){
+      if(String(o.product||'').trim()!==target)return;
+      const name=String(o.name||o.customerName||'').trim();
+      if(!name)return;
+      const qty=Number(o.qty||o.quantity||1)||1;
+      map.set(name,(map.get(name)||0)+qty);
+    });
+    const rows=Array.from(map.entries()).sort(function(a,b){return a[0].localeCompare(b[0],'ar');});
+    title.textContent='عميلات: '+target;
+    count.textContent=rows.length ? 'عدد العميلات: '+rows.length : 'لا توجد طلبات مسجلة لهذا المنتج حتى الآن';
+    list.innerHTML='';
+    if(!rows.length){
+      const empty=document.createElement('div');
+      empty.className='small';
+      empty.style.padding='18px 0';
+      empty.textContent='لم يتم تسجيل أي عميلة لهذا المنتج.';
+      list.appendChild(empty);
+    }else{
+      rows.forEach(function(item){
+        const row=document.createElement('div');
+        row.className='product-customer-row';
+        const n=document.createElement('span'); n.textContent=item[0];
+        const q=document.createElement('strong'); q.textContent=item[1]+' قطعة';
+        row.appendChild(n); row.appendChild(q); list.appendChild(row);
+      });
+    }
+    modal.style.display='flex';
+  };
+  window.closeProductCustomers=function(){
+    const modal=document.getElementById('productCustomerModal');
+    if(modal)modal.style.display='none';
+  };
+  document.addEventListener('click',function(e){
+    const el=e.target.closest('[data-product-index]');
+    if(!el)return;
+    const i=Number(el.getAttribute('data-product-index'));
+    if(window.products && window.products[i]){
+      window.showProductCustomers(window.products[i].name);
+    }
+  });
+})();
+</script>
 </body></html>
