@@ -25,6 +25,16 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 @media(max-width:760px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.invoice-head{display:block}}
 @media print{body{background:#fff}.no-print,header,main>.nav{display:none!important}.view{display:none!important}#invoiceView{display:block!important}.invoice{border:0}}
 </style>
+
+<style>
+.product-customer-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.product-customer-card{background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:80vh;overflow:auto;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+.product-customer-head{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #eee;padding-bottom:12px;margin-bottom:12px}
+.product-customer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eee}
+.product-customer-row:last-child{border-bottom:0}
+.product-clickable{cursor:pointer}
+.product-clickable:hover{background:#fff9ed}
+</style>
 </head>
 <body>
 <header><div class="brand"><div class="logo">O</div><div><h1>Ordria</h1><p>by Advira • Smart Orders. Simple Invoices.</p></div></div></header>
@@ -115,6 +125,33 @@ create policy "ordria_update_own" on public.ordria_data for update using (auth.u
 </div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">document.addEventListener('DOMContentLoaded',()=>refreshCustomerDatalist());
+
+function showProductCustomers(productName){
+  const modal=document.getElementById('productCustomerModal');
+  const list=document.getElementById('productCustomerList');
+  const title=document.getElementById('productCustomerTitle');
+  const count=document.getElementById('productCustomerCount');
+  if(!modal||!list)return;
+  const map=new Map();
+  (orders||[]).forEach(o=>{
+    if(String(o.product||'').trim()!==String(productName||'').trim())return;
+    const name=String(o.name||'').trim();
+    if(!name)return;
+    map.set(name,(map.get(name)||0)+1);
+  });
+  const rows=[...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
+  title.textContent='عميلات: '+productName;
+  count.textContent=rows.length?('عدد العميلات: '+rows.length):'لا توجد عميلات مسجلات لهذا المنتج بعد';
+  list.innerHTML=rows.length
+    ? rows.map(([name,qty])=>'<div class="product-customer-row"><span>'+esc(name)+'</span><strong>'+qty+' قطعة</strong></div>').join('')
+    : '<div class="small" style="padding:18px 0">لم يتم تسجيل أي عميلة لهذا المنتج.</div>';
+  modal.style.display='flex';
+}
+function closeProductCustomers(){
+  const modal=document.getElementById('productCustomerModal');
+  if(modal)modal.style.display='none';
+}
+
 </script>
 <script>
 let sb=null, cloudUser=null, cloudBusy=false;
@@ -158,7 +195,7 @@ function renderStoreSelect(){let old=storeSelect.value;storeSelect.innerHTML=sto
 function renderProductSelect(){let old=productSelect.value;productSelect.innerHTML='<option value="">-- اختاري المنتج --</option>'+products.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} — $${Number(p.price).toFixed(2)}</option>`).join('');if(products.some(p=>p.id===old))productSelect.value=old}
 function fillPrice(){let p=products.find(x=>x.id===productSelect.value);if(p){price.value=p.price;newProduct.value=''}}
 function addProduct(){let n=catalogName.value.trim(),p=Number(catalogPrice.value);if(!n||!p)return alert('اكتبي اسم المنتج والسعر.');products.push({id:'p_'+Date.now()+Math.random(),name:n,price:p});catalogName.value='';catalogPrice.value='';persist();alert('تم حفظ المنتج ❤️')}
-function renderProducts(){productList.innerHTML=products.length?products.map(p=>`<div class="productRow"><div><b>${esc(p.name)}</b><div class="small">$${Number(p.price).toFixed(2)}</div></div><button class="danger" onclick="deleteProduct('${p.id}')">حذف</button></div>`).join(''):'<p class="small">لا توجد منتجات محفوظة.</p>'}
+function renderProducts(){productList.innerHTML=products.length?products.map(p=>`<div class="productRow"><div class="product-clickable" onclick="showProductCustomers('${String(p.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" title="اضغطي لعرض العميلات"><b>${esc(p.name)}</b><div class="small">$${Number(p.price).toFixed(2)} — اضغطي لعرض العميلات</div></div><button class="danger" onclick="deleteProduct('${p.id}')">حذف</button></div>`).join(''):'<p class="small">لا توجد منتجات محفوظة.</p>'}
 function deleteProduct(id){if(confirm('حذف المنتج من القائمة؟ الطلبات القديمة لن تتأثر.')){products=products.filter(p=>p.id!==id);persist()}}
 function addStore(){let n=storeName.value.trim();if(!n)return alert('اكتبي اسم المتجر.');stores.push({id:'s_'+Date.now()+Math.random(),name:n,phone:storePhone.value.trim(),info:storeInfo.value.trim()});storeName.value='';storePhone.value='';storeInfo.value='';persist();alert('تم إضافة المتجر ❤️')}
 function renderStores(){storeList.innerHTML=stores.map(s=>`<div class="store"><div><b>${esc(s.name)}</b><div class="small">${esc(s.phone||'')} ${s.info?'• '+esc(s.info):''}</div></div><button class="secondary" onclick="useStore('${s.id}')">استخدام</button></div>`).join('')}
@@ -231,4 +268,17 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 </script>
+
+<div id="productCustomerModal" class="product-customer-modal" onclick="if(event.target===this)closeProductCustomers()">
+  <div class="product-customer-card">
+    <div class="product-customer-head">
+      <div>
+        <h3 id="productCustomerTitle" style="margin:0">عميلات المنتج</h3>
+        <div id="productCustomerCount" class="small"></div>
+      </div>
+      <button type="button" class="secondary" onclick="closeProductCustomers()">إغلاق ✕</button>
+    </div>
+    <div id="productCustomerList"></div>
+  </div>
+</div>
 </body></html>
