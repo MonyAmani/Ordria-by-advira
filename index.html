@@ -894,33 +894,66 @@ function renderInvoiceHub(){
   <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" data-sid="${esc(String(sid))}" data-name="${esc(c.name)}" data-month="${esc(month)}" onclick="openInvoiceFromHubButton(this)">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير لهذا الشهر.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وشهرًا لعرض الفواتير.</div>'}`;
 }
 
-function openInvoiceFromButton(btn){
-  try{
-    const sid=String(btn?.dataset?.sid||'');
-    const name=String(btn?.dataset?.name||'');
-    if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');
-    invoice(encodeURIComponent(sid),encodeURIComponent(name),'');
-  }catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}
+function getInvoiceContext(sid,name,dateEnc){
+  const allCustomerOrders=orders.filter(o=>{
+    const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(name);
+    if(!sameName)return false;
+    const st=findStoreForOrder(o);
+    return String(o.storeId||'')===String(sid)|| (st&&String(st.id)===String(sid));
+  });
+  const availableDates=[...new Set(allCustomerOrders.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
+  const requested=dateEnc?normalizeOrderDate(decodeURIComponent(dateEnc)):'';
+  const selected=requested||availableDates[0]||todayLocalDate();
+  return {allCustomerOrders,availableDates,selected};
 }
-function openInvoiceFromHubButton(btn){
-  try{
-    const sid=String(btn?.dataset?.sid||'');
-    const name=String(btn?.dataset?.name||'');
-    const month=String(btn?.dataset?.month||'');
-    if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');
-    const matching=orders.filter(o=>{
-      const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(name);
-      if(!sameName)return false;
-      const st=findStoreForOrder(o);
-      const sameStore=String(o.storeId||'')===sid||(st&&String(st.id)===sid);
-      if(!sameStore)return false;
-      const d=orderEffectiveDate(o);
-      return !month || String(d||'').slice(0,7)===month.slice(0,7);
-    });
-    const dates=[...new Set(matching.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
-    invoice(encodeURIComponent(sid),encodeURIComponent(name),dates[0]?encodeURIComponent(dates[0]):'');
-  }catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}
+function buildInvoiceMarkup(sid,n,selectedDate,availableDates){
+  const allMode=selectedDate==='__ALL__';
+  selectedDate=allMode?'__ALL__':(normalizeOrderDate(selectedDate)||todayLocalDate());
+  const customerOrders=orders.filter(o=>{
+    const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(n);
+    if(!sameName)return false;
+    const st=findStoreForOrder(o);
+    return String(o.storeId||'')===String(sid)|| (st&&String(st.id)===String(sid));
+  });
+  const dates=[...new Set(customerOrders.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
+  const a=allMode?customerOrders:customerOrders.filter(o=>orderEffectiveDate(o)===selectedDate);
+  const s=stores.find(x=>String(x.id)===String(sid))||findStoreForOrder(customerOrders[0])||{name:'متجر',phone:'',info:''};
+  const merged={};
+  a.forEach(o=>{
+    const product=String(o.product||o.productName||o.item||'').replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim();
+    if(!product)return;
+    const key=cleanKey(product);
+    const q=Math.max(1,Number(o.qty||o.quantity||1)||1), price=Number(o.price)||0;
+    if(!merged[key])merged[key]={product,qty:0,total:0,price,prices:[]};
+    merged[key].qty+=q; merged[key].total+=price*q; merged[key].prices.push(price);
+  });
+  const lines=Object.values(merged), subtotal=lines.reduce((x,y)=>x+y.total,0);
+  const safeNumSeed=(String(allMode?todayLocalDate():selectedDate).replace(/\D/g,'').slice(-8)||'00000000');
+  const num='ORD-'+safeNumSeed+'-'+String(Math.abs((cleanKey(n).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900)+100));
+  const dateOptions=dates.map(d=>`<option value="${esc(d)}" ${d===selectedDate?'selected':''}>${esc(d)}</option>`).join('');
+  const allOption=`<option value="__ALL__" ${allMode?'selected':''}>كل التواريخ — عرض كل الطلبات</option>`;
+  const emptyText=dates.length?`لا توجد طلبات لهذه العميلة في تاريخ <b>${esc(selectedDate)}</b>. اختاري تاريخًا آخر أو «كل التواريخ».`:`لا توجد تواريخ مسجلة لهذه العميلة.`;
+  const shareText=[`Ordry by Advira`,`العميلة: ${n}`,`المتجر: ${s.name}`,`التاريخ: ${allMode?'كل التواريخ':selectedDate}`,``,...lines.map(o=>`${o.product} — $${Number(o.price).toFixed(2)} × ${o.qty} = $${o.total.toFixed(2)}`),``,`الإجمالي: $${subtotal.toFixed(2)}`].join('\n');
+  const encodedShare=encodeURIComponent(shareText);
+  return {allMode,selectedDate,dates,lines,subtotal,num,s,html:`<div class="invoice">
+  <div class="no-print invoice-actions"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button><button onclick="shareInvoice()">📤 مشاركة</button></div>
+  <div class="hint no-print" style="margin-bottom:15px"><b>📅 تاريخ الفاتورة</b><div class="small">اختاري تاريخًا لعرض طلباته فقط، أو «كل التواريخ» لعرض كل طلبات العميلة.</div><div class="actions"><select onchange="changeInvoiceDate(this.value)"><option value="">اختاري التاريخ</option>${allOption}${dateOptions}</select><input type="date" value="${allMode?'':esc(selectedDate)}" onchange="changeInvoiceDate(this.value)"></div></div>
+  <div class="invoice-brand"><img src="${location.origin}${location.pathname.replace(/[^/]*$/,'')}icon-180.png" alt="Ordry"><div class="invoice-brand-title">Ordry by Advira</div></div>
+  <div class="invoice-head"><div><h2 style="margin:0">${esc(s.name)}</h2><div class="small">${esc(s.phone||'')} ${s.info?'• '+esc(s.info):''}</div></div><div><b>فاتورة:</b> ${num}<br><b>التاريخ:</b> ${allMode?'كل التواريخ':esc(selectedDate)}<br><b>العميلة:</b> ${esc(n)}</div></div>
+  ${lines.length?`<table class="invoice-items"><thead><tr><th>المنتج</th><th>السعر</th><th>عدد القطع</th><th>إجمالي المنتج</th></tr></thead><tbody>${lines.map(o=>{const unique=[...new Set(o.prices.map(v=>Number(v).toFixed(2)))];const unit=unique.length===1?`$${Number(o.price).toFixed(2)}`:'متعدد';return `<tr><td>${esc(o.product)}</td><td>${unit}</td><td>${o.qty}</td><td>$${o.total.toFixed(2)}</td></tr>`}).join('')}</tbody></table>`:`<div class="hint" style="margin-top:18px">${emptyText}</div>`}
+  <div class="invoice-total-box"><span class="invoice-total-label">الإجمالي</span><span class="invoice-total-value">$${subtotal.toFixed(2)}</span></div><div class="invoice-footer">شكرًا لثقتك ❤️</div></div>`,shareText,encodedShare};
 }
+function openInvoiceWindow(sid,name,date){
+  const ctx=getInvoiceContext(sid,name,date?encodeURIComponent(date):'');
+  const initial=buildInvoiceMarkup(sid,name,ctx.selected,ctx.availableDates);
+  const w=window.open('about:blank','_blank','width=900,height=900');
+  if(!w){alert('المتصفح منع فتح نافذة الفاتورة. اسمحي بالنوافذ المنبثقة لهذا الموقع ثم جربي مرة أخرى.');return;}
+  const base=location.href;
+  const script=`<script>const sid=${JSON.stringify(sid)}, name=${JSON.stringify(name)}; let selectedDate=${JSON.stringify(initial.selectedDate)}; const ordersData=${JSON.stringify(orders)}; const storesData=${JSON.stringify(stores)}; const productsData=${JSON.stringify(products)}; const shareText=${JSON.stringify(initial.shareText)}; function changeInvoiceDate(v){selectedDate=v||selectedDate; location.reload();} function shareInvoice(){if(navigator.share){navigator.share({title:'Ordry by Advira - '+name,text:shareText}).catch(()=>{});}else{navigator.clipboard?.writeText(shareText).then(()=>alert('تم نسخ تفاصيل الفاتورة، تقدري تبعتيها على واتساب أو ماسنجر ❤️')).catch(()=>alert(shareText));}}<\/script>`;
+  w.document.open(); w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>فاتورة ${esc(name)} - Ordry</title><style>body{font-family:Arial,sans-serif;background:#f5f3ef;margin:0;padding:25px;color:#222}.invoice{max-width:820px;margin:auto;background:#fff;padding:28px;border-radius:18px;box-shadow:0 8px 30px #0001}.invoice-actions{display:flex;gap:8px;justify-content:flex-start;margin-bottom:15px}.invoice-actions button{padding:10px 14px;border:0;border-radius:10px;background:#151515;color:#fff;cursor:pointer}.hint{background:#faf7f1;border:1px solid #eadfce;border-radius:12px;padding:12px;margin-bottom:15px}.actions{display:flex;gap:8px;margin-top:8px}.actions select,.actions input{padding:10px;border:1px solid #ddd;border-radius:10px;flex:1}.invoice-brand{text-align:center;border-bottom:1px solid #ddd;padding-bottom:18px;margin-bottom:18px}.invoice-brand img{width:90px;height:90px;object-fit:contain;display:block;margin:auto}.invoice-brand-title{font-weight:800;font-size:22px;margin-top:6px}.invoice-head{display:flex;justify-content:space-between;gap:20px;padding-bottom:15px;border-bottom:1px solid #ddd}.small{font-size:12px;color:#666}.invoice-items{width:100%;border-collapse:collapse;margin-top:20px}.invoice-items th,.invoice-items td{padding:12px;border-bottom:1px solid #eee;text-align:right}.invoice-total-box{margin-top:20px;padding:16px;border:2px solid #8b6a4b;border-radius:12px;display:flex;justify-content:space-between;font-size:20px;font-weight:800}.invoice-footer{text-align:center;margin-top:24px;color:#777}@media print{body{background:#fff;padding:0}.invoice{box-shadow:none;border-radius:0;max-width:none}.no-print{display:none!important}}@media(max-width:600px){.invoice-head{flex-direction:column}.actions{flex-direction:column}}</style></head><body>${initial.html}${script}</body></html>`); w.document.close(); w.focus();
+}
+function openInvoiceFromButton(btn){try{const sid=String(btn?.dataset?.sid||''),name=String(btn?.dataset?.name||'');if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');openInvoiceWindow(sid,name,'');}catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}}
+function openInvoiceFromHubButton(btn){try{const sid=String(btn?.dataset?.sid||''),name=String(btn?.dataset?.name||''),month=String(btn?.dataset?.month||'');if(!sid||!name)return alert('بيانات العميلة غير مكتملة.');const matching=orders.filter(o=>{const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(name);if(!sameName)return false;const st=findStoreForOrder(o);const sameStore=String(o.storeId||'')===sid||(st&&String(st.id)===sid);if(!sameStore)return false;const d=orderEffectiveDate(o);return !month||String(d||'').slice(0,7)===month.slice(0,7);});const dates=[...new Set(matching.map(orderEffectiveDate).filter(Boolean))].sort().reverse();openInvoiceWindow(sid,name,dates[0]||'');}catch(e){console.error(e);alert('تعذر فتح الفاتورة. جربي مرة أخرى.');}}
 
 function invoice(sidEnc,nEnc,dateEnc){
   const sid=decodeURIComponent(sidEnc), n=decodeURIComponent(nEnc);
