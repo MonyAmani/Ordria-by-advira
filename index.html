@@ -132,7 +132,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
   <div id="customerSuggestions" class="customer-suggestions"></div>
 </div>
 <div class="small">اكتبي كل اسم في سطر. أثناء الكتابة ستظهر الأسماء المسجلة سابقًا المطابقة، اختاري منها أو كمّلي كتابة اسم جديد عادي. نفس الاسم مرتين = قطعتين.</div>
-<div class="actions"><button class="gold" onclick="addBatch()">💾 حفظ الطلبات</button><button class="secondary" onclick="clearForm()">مسح</button></div>
+<div class="field"><label>📅 تاريخ الطلب</label><input id="orderDate" type="date"></div><div class="actions"><button class="gold" onclick="addBatch()">💾 حفظ الطلبات</button><button class="secondary" onclick="clearForm()">مسح</button></div>
 <div class="hint">💡 بعد الحفظ يفضل <b>نفس المتجر</b> مختارًا؛ غيري المنتج والأسماء فقط وكمّلي.</div>
 </div>
 <div class="card"><h2>ملخص سريع</h2><div class="stats">
@@ -149,7 +149,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 <div class="card"><h2>المتاجر</h2><div id="storeList"></div></div></div></section>
 
 <section id="customers" class="view"><div class="card"><h2>👩‍💼 العميلات</h2><input id="customerSearch" oninput="renderCustomers()" placeholder="ابحثي بالاسم"><div id="customerList" style="margin-top:10px"></div></div></section>
-<section id="orders" class="view"><div class="card"><h2>📦 كل الطلبات</h2><div id="orderList"></div></div></section>
+<section id="orders" class="view"><div class="card"><h2>📦 كل الطلبات — التاريخ يُسجّل تلقائيًا</h2><div id="orderList"></div></div></section>
 <section id="settings" class="view"><div class="grid">
 <div class="card"><h2>⚙️ بيانات العميلة</h2>
 <label>اسم العميلة</label><input id="custName" placeholder="مثال: رنا أحمد">
@@ -630,4 +630,21 @@ if ('serviceWorker' in navigator) {
   });
 })();
 </script>
-<script>document.addEventListener('DOMContentLoaded',function(){try{setupCustomerNameSuggestions();}catch(e){}});</script></body></html>
+<script>document.addEventListener('DOMContentLoaded',function(){try{setupCustomerNameSuggestions();}catch(e){}});</script>
+<script id="ORDRIA_AUTO_ORDER_DATE">
+(function(){
+  const pad=n=>String(n).padStart(2,'0');
+  function todayLocal(){
+    const d=new Date();
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  }
+  function setToday(){
+    const el=document.getElementById('orderDate');
+    if(el && !el.value) el.value=todayLocal();
+  }
+  document.addEventListener('DOMContentLoaded',setToday);
+  window.addEventListener('load',setToday);
+  setInterval(setToday,1000*60);
+})();
+</script>
+</body></html>
