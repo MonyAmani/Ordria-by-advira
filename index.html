@@ -24,6 +24,14 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:18px;z-index:10}.modal.open{display:flex}.modalBox{background:#fff;border-radius:16px;padding:20px;width:min(520px,100%)}.modalBox h3{margin-top:0}
 @media(max-width:760px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.invoice-head{display:block}}
 @media print{body{background:#fff}.no-print,header,main>.nav{display:none!important}.view{display:none!important}#invoiceView{display:block!important}.invoice{border:0}}
+
+.date-display-wrap{position:relative;width:100%;}
+.date-display{width:100%;box-sizing:border-box;min-height:45px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;background:#fffdf9;border:1px solid #d7d0c8;border-radius:10px;direction:ltr;font-weight:800;letter-spacing:.2px;text-align:center;overflow:hidden;}
+.date-display span{padding:11px 8px;display:flex;align-items:center;justify-content:center;}
+.date-display .date-day{justify-content:flex-start;padding-left:18px;}
+.date-display .date-year{justify-content:flex-end;padding-right:18px;}
+.date-display .date-month{font-size:15px;}
+.date-picker-hidden{position:absolute!important;inset:0;width:100%!important;height:100%!important;opacity:0!important;cursor:pointer;z-index:2;}
 </style>
 
 <style>
@@ -145,7 +153,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 </div>
 <div class="small">اكتبي كل عميلة في سطر. لو العميلة واخدة أكتر من قطعة اكتبي بعد اسمها + والعدد، مثل: مني +4 = ٤ قطع. الاسم فقط = قطعة واحدة.</div>
 <div class="field"><label>🧾 نوع الفاتورة لهذا الإدخال</label><div class="actions" style="margin-top:6px"><button type="button" id="newInvoiceModeBtn" class="gold" onclick="setEntryInvoiceMode('new')">🆕 فاتورة جديدة</button><button type="button" id="continueInvoiceModeBtn" class="secondary" onclick="setEntryInvoiceMode('continue')">↩️ استكمال فاتورة قديمة</button></div><div id="entryInvoiceModeText" class="small" style="margin-top:8px">سيتم إنشاء الإدخال على تاريخ جديد (تاريخ اليوم).</div></div>
-<div class="field"><label>📅 تاريخ الطلب / الفاتورة</label><input id="orderDate" type="date" onchange="syncEntryInvoiceModeFromDate()"></div>
+<div class="field"><label>📅 تاريخ الطلب / الفاتورة</label><div class="date-display-wrap"><div id="orderDateDisplay" class="date-display" aria-label="تاريخ الطلب"><span class="date-day" id="orderDateDay">اليوم</span><span class="date-month" id="orderDateMonth">الشهر</span><span class="date-year" id="orderDateYear">السنة</span></div><input id="orderDate" type="date" class="date-picker-hidden" onchange="syncEntryInvoiceModeFromDate()" aria-label="اختيار تاريخ الطلب"></div><div class="small" style="margin-top:6px">التاريخ يظهر بالإنجليزية: <b>اليوم يسارًا • الشهر في المنتصف • السنة يمينًا</b>، مثل <b>6 &nbsp; Sept &nbsp; 2026</b>.</div></div>
 <div id="continueInvoiceBox" class="field" style="display:none"><label>📂 اختاري تاريخ الفاتورة القديمة</label><select id="continueInvoiceDate" onchange="applyContinueInvoiceDate()"><option value="">-- اختاري التاريخ --</option></select></div>
 <div class="actions"><button class="gold" onclick="addBatch()">💾 حفظ الطلبات</button><button class="secondary" onclick="clearForm()">مسح</button></div>
 <div class="hint">💡 <b>فاتورة جديدة</b> = تاريخ جديد مستقل. <b>استكمال فاتورة قديمة</b> = اختاري تاريخًا سابقًا، وسيُضاف الطلب لنفس حساب ذلك التاريخ.</div>
@@ -347,6 +355,34 @@ function todayLocalDate(){
   const d=new Date(),pad=n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 }
+function formatEnglishDate(v){
+  const x=String(v||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(x))return '';
+  const [y,mo,day]=x.split('-');
+  const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
+  return `${Number(day)} ${names[Number(mo)-1]||mo} ${y}`;
+}
+function syncOrderDateDisplay(){
+  const d=document.getElementById('orderDate');
+  const dayEl=document.getElementById('orderDateDay');
+  const monthEl=document.getElementById('orderDateMonth');
+  const yearEl=document.getElementById('orderDateYear');
+  if(!d||!dayEl||!monthEl||!yearEl)return;
+  const x=String(d.value||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(x)){
+    dayEl.textContent='اليوم'; monthEl.textContent='الشهر'; yearEl.textContent='السنة'; return;
+  }
+  const [y,mo,day]=x.split('-');
+  const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
+  dayEl.textContent=String(Number(day));
+  monthEl.textContent=names[Number(mo)-1]||mo;
+  yearEl.textContent=y;
+}
+function openOrderDatePicker(){
+  const d=document.getElementById('orderDate');
+  if(!d)return;
+  try{ if(typeof d.showPicker==='function') d.showPicker(); else d.click(); }catch(e){ d.click(); }
+}
 let productViewDate=localStorage.getItem('ordria_product_view_date_v1')||todayLocalDate();
 let productViewAllDates=false;
 let productStoreFilter=localStorage.getItem('ordria_product_store_filter_v1')||'';
@@ -487,21 +523,23 @@ function setEntryInvoiceMode(mode){
     oldBtn.classList.remove('secondary'); oldBtn.classList.add('gold');
     box.style.display='block'; refreshContinueInvoiceDates();
     const dates=entryInvoiceDates();
-    if(dates.length){ document.getElementById('continueInvoiceDate').value=dates[0]; date.value=dates[0]; }
+    if(dates.length){ document.getElementById('continueInvoiceDate').value=dates[0]; date.value=dates[0]; syncOrderDateDisplay(); }
     txt.textContent='سيتم إضافة الطلب على الفاتورة القديمة التي تختارين تاريخها.';
   }else{
     newBtn.classList.remove('secondary'); newBtn.classList.add('gold');
     oldBtn.classList.remove('gold'); oldBtn.classList.add('secondary');
     box.style.display='none';
     date.value=todayLocalDate();
+    syncOrderDateDisplay();
     txt.textContent='سيتم إنشاء إدخال جديد منفصل على تاريخ اليوم.';
   }
 }
 function applyContinueInvoiceDate(){
   const v=document.getElementById('continueInvoiceDate')?.value;
-  if(v){ const d=document.getElementById('orderDate'); if(d)d.value=v; }
+  if(v){ const d=document.getElementById('orderDate'); if(d){d.value=v;syncOrderDateDisplay();} }
 }
 function syncEntryInvoiceModeFromDate(){
+  syncOrderDateDisplay();
   const mode=window.entryInvoiceMode||'new';
   if(mode==='continue')applyContinueInvoiceDate();
 }
@@ -1049,6 +1087,7 @@ function removeCustomerFromEditList(nameEnc){
 function renderAll(){
 refreshCustomerDatalist();renderStoreSelect();renderCatalogStoreSelect();renderProductSelect();renderProducts();renderStores();renderCustomerStoreFilter();renderCustomers();renderSavedCustomers();renderOrders();renderInvoiceHub();let g=groups();statOrders.textContent=orders.length;statCustomers.textContent=Object.keys(g).length;statTotal.textContent='$'+orders.reduce((s,o)=>s+o.price*(Number(o.qty||o.quantity||1)||1),0).toFixed(2)}
 renderAll();
+syncOrderDateDisplay();
 (function(){let c=JSON.parse(localStorage.getItem(CLOUD_CFG)||'{}');if(c.url)sbUrl.value=c.url;if(c.key)sbKey.value=c.key;if(c.url&&c.key)initCloud().catch(()=>{})})();
 </script>
 <script>
@@ -1181,6 +1220,7 @@ if ('serviceWorker' in navigator) {
   function setToday(){
     const el=document.getElementById('orderDate');
     if(el && !el.value) el.value=todayLocal();
+    syncOrderDateDisplay();
   }
   document.addEventListener('DOMContentLoaded',setToday);
   window.addEventListener('load',setToday);
