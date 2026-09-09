@@ -643,15 +643,18 @@ function adjustOrderCustomerQty(storeId,productName,customerName,delta){
   });
   if(!matches.length)return;
 
-  // Archived invoices are read-only: never add/remove pieces from them.
-  // If the customer has both archived and current entries, +/− always targets
-  // the newest non-archived entry. If there is no current entry, block the action.
-  const editableMatches=matches.filter(i=>{
-    const d=orderEffectiveDate(list[i]);
-    return !d || !isMonthArchived(storeId,monthKey(d));
-  });
+  // في قسم الطلبات نعدّل الفاتورة الحالية فقط: وهي أحدث تاريخ مسجّل
+  // لهذا المتجر والمنتج والعميلة. أي تاريخ أقدم (حتى لو لم توجد له علامة أرشيف)
+  // لا يدخل في عدد القطع ولا في أزرار +/−.
+  const datedMatches=matches.filter(i=>orderEffectiveDate(list[i]));
+  const latestDate=datedMatches.length
+    ? datedMatches.map(i=>orderEffectiveDate(list[i])).sort().pop()
+    : '';
+  const editableMatches=latestDate
+    ? datedMatches.filter(i=>orderEffectiveDate(list[i])===latestDate)
+    : matches;
   if(!editableMatches.length){
-    alert('الفاتورة مؤرشفة ومدفوعة 🔒\nلا يمكن إضافة أو حذف قطع منها. لعمل طلب جديد اختاري تاريخًا جديدًا.');
+    alert('لا توجد فاتورة حالية لهذه العميلة. 🔒');
     return;
   }
   const i=editableMatches[editableMatches.length-1], o=list[i];
@@ -683,12 +686,13 @@ function refreshOrdersCustomerUI(storeId,productName){
   const sid=String(storeId||'');
   const prod=String(productName||'').trim();
   const matchingRows=rows.filter(o=>String(o.storeId||'')===sid && String(o.product||o.productName||o.item||'').trim()===prod);
-  // في قسم الطلبات نعرض عدد القطع من أحدث فاتورة حالية فقط، وليس الفواتير المؤرشفة أو التواريخ الحالية الأقدم.
-  const currentDates=[...new Set(matchingRows.map(o=>orderEffectiveDate(o)).filter(Boolean).filter(d=>!isMonthArchived(sid,monthKey(d))))].sort();
+  // اعرض عدد القطع من الفاتورة الحالية فقط: أحدث تاريخ للمنتج في هذا المتجر.
+  // لا نجمع معه أي تاريخ أقدم، سواء كان مؤرشفًا أو لا.
+  const currentDates=[...new Set(matchingRows.map(o=>orderEffectiveDate(o)).filter(Boolean))].sort();
   const currentDate=currentDates.length?currentDates[currentDates.length-1]:'';
   const currentRows=currentDate
     ? matchingRows.filter(o=>orderEffectiveDate(o)===currentDate)
-    : matchingRows.filter(o=>!orderEffectiveDate(o) || !isMonthArchived(sid,monthKey(orderEffectiveDate(o))));
+    : matchingRows;
   const cm=new Map();
   currentRows.forEach(o=>{
     const name=String(o.name||o.customerName||o.customer||'').trim();
@@ -859,11 +863,12 @@ function renderOrders(){
           ordersViewState.showCustomers=true;
           const matchingProductRows=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
               String(o.product||o.productName||o.item||'').trim()===selectedProduct);
-          const productDates=[...new Set(matchingProductRows.map(o=>orderEffectiveDate(o)).filter(Boolean).filter(d=>!isMonthArchived(selectedStoreId,monthKey(d))))].sort();
+          // عدد القطع هنا من أحدث فاتورة لهذا المنتج فقط.
+          const productDates=[...new Set(matchingProductRows.map(o=>orderEffectiveDate(o)).filter(Boolean))].sort();
           const productCurrentDate=productDates.length?productDates[productDates.length-1]:'';
           const productCurrentRows=productCurrentDate
             ? matchingProductRows.filter(o=>orderEffectiveDate(o)===productCurrentDate)
-            : matchingProductRows.filter(o=>!orderEffectiveDate(o) || !isMonthArchived(selectedStoreId,monthKey(orderEffectiveDate(o))));
+            : matchingProductRows;
           const productTotal=productCurrentRows.reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
           document.getElementById('ordersProductValue').textContent=selectedProduct+' — '+productTotal+' قطعة';
           productButton.textContent='✓ '+selectedProduct+' — تغيير ▾';
@@ -871,12 +876,12 @@ function renderOrders(){
 
           const matchingRows=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
                           String(o.product||o.productName||o.item||'').trim()===selectedProduct);
-          // اعرض عملاء أحدث فاتورة حالية فقط، واستبعد كل الفواتير المؤرشفة.
-          const currentDates=[...new Set(matchingRows.map(o=>orderEffectiveDate(o)).filter(Boolean).filter(d=>!isMonthArchived(selectedStoreId,monthKey(d))))].sort();
+          // اعرض عملاء الفاتورة الحالية فقط = أحدث تاريخ للمنتج، بدون أي تاريخ أقدم.
+          const currentDates=[...new Set(matchingRows.map(o=>orderEffectiveDate(o)).filter(Boolean))].sort();
           const currentDate=currentDates.length?currentDates[currentDates.length-1]:'';
           const currentRows=currentDate
             ? matchingRows.filter(o=>orderEffectiveDate(o)===currentDate)
-            : matchingRows.filter(o=>!orderEffectiveDate(o) || !isMonthArchived(selectedStoreId,monthKey(orderEffectiveDate(o))));
+            : matchingRows;
           const cm=new Map();
           currentRows.forEach(o=>{
               const name=String(o.name||o.customerName||o.customer||'').trim();
