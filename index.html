@@ -397,9 +397,6 @@ function renderOrders(){
         <div class="orders-options" id="ordersCustomerOptions"></div>
       </div>
 
-      <div class="orders-results" id="ordersResults">
-        <div class="orders-no-result">اختاري المتجر ثم المنتج لعرض العملاء.</div>
-      </div>
     </div>`;
 
   const storeOptions=document.getElementById('ordersStoreOptions');
@@ -410,7 +407,6 @@ function renderOrders(){
   const storeButton=document.getElementById('ordersStoreButton');
   const productButton=document.getElementById('ordersProductButton');
   const customerButton=document.getElementById('ordersCustomerButton');
-  const results=document.getElementById('ordersResults');
 
   let selectedStore='', selectedProduct='';
 
@@ -440,7 +436,6 @@ function renderOrders(){
       productButton.textContent='اضغطي لاختيار المنتج ▾';
       customerButton.textContent='اختاري المنتج أولًا ▾';
       customerOptions.innerHTML='';
-      results.innerHTML='<div class="orders-no-result">اختاري المنتج لعرض العملاء.</div>';
 
       productOptions.innerHTML=products.length?products.map(x=>`<button type="button" class="orders-option" data-product="${esc(x)}">📦 ${esc(x)}</button>`).join(''):'<div class="orders-no-result">لا توجد منتجات لهذا المتجر.</div>';
 
@@ -467,7 +462,6 @@ function renderOrders(){
             ? customers.map(([n,q])=>`<button type="button" class="orders-option" data-customer="${esc(n)}">👤 ${esc(n)} — ${q} قطعة</button>`).join('')
             : '<div class="orders-no-result">لا يوجد عملاء لهذا المنتج.</div>';
 
-          results.innerHTML='<div class="orders-no-result">اضغطي «العملاء» لعرض الأسماء.</div>';
 
           customerButton.onclick=()=>{
             storeOptions.classList.remove('open');
@@ -475,12 +469,8 @@ function renderOrders(){
             const opening=!customerOptions.classList.contains('open');
             customerOptions.classList.toggle('open', opening);
             if(opening){
-              results.innerHTML=customers.length
-                ? '<b>عملاء المنتج</b>'+customers.map(([n,q])=>`<div class="orders-result-row"><span>👤 ${esc(n)}</span><strong>${q} قطعة</strong></div>`).join('')
-                : '<div class="orders-no-result">لا يوجد عملاء مسجلون لهذا المنتج.</div>';
               customerButton.textContent='✓ العملاء — إخفاء ▴';
             }else{
-              results.innerHTML='<div class="orders-no-result">اضغطي «العملاء» لعرض الأسماء.</div>';
               customerButton.textContent='اضغطي لعرض العملاء ▾';
             }
           };
