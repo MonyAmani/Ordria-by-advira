@@ -680,8 +680,17 @@ function refreshOrdersCustomerUI(storeId,productName){
   const productButton=document.getElementById('ordersProductButton');
   if(!customerOptions||!customerButton||!productValue||!productButton)return;
   const rows=orders||[];
+  const sid=String(storeId||'');
+  const prod=String(productName||'').trim();
+  const matchingRows=rows.filter(o=>String(o.storeId||'')===sid && String(o.product||o.productName||o.item||'').trim()===prod);
+  // في قسم الطلبات نعرض عدد القطع من أحدث فاتورة حالية فقط، وليس الفواتير المؤرشفة أو التواريخ الحالية الأقدم.
+  const currentDates=[...new Set(matchingRows.map(o=>orderEffectiveDate(o)).filter(Boolean).filter(d=>!isMonthArchived(sid,monthKey(d))))].sort();
+  const currentDate=currentDates.length?currentDates[currentDates.length-1]:'';
+  const currentRows=currentDate
+    ? matchingRows.filter(o=>orderEffectiveDate(o)===currentDate)
+    : matchingRows.filter(o=>!orderEffectiveDate(o) || !isMonthArchived(sid,monthKey(orderEffectiveDate(o))));
   const cm=new Map();
-  rows.filter(o=>String(o.storeId||'')===String(storeId||'') && String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim()).forEach(o=>{
+  currentRows.forEach(o=>{
     const name=String(o.name||o.customerName||o.customer||'').trim();
     if(name)cm.set(name,(cm.get(name)||0)+(Number(o.qty||o.quantity||1)||1));
   });
@@ -695,7 +704,7 @@ function refreshOrdersCustomerUI(storeId,productName){
       <button type="button" class="remove" title="إزالة العميلة بالكامل" onclick="removeOrderCustomer('${String(storeId).replace(/'/g,"\\'")}','${String(productName).replace(/'/g,"\\'")}','${String(n).replace(/'/g,"\\'")}')">إزالة</button>
     </span>
   </div>`).join(''):'<div class="orders-no-result">لا يوجد عملاء لهذا المنتج.</div>';
-  const productTotal=rows.filter(o=>String(o.storeId||'')===String(storeId||'') && String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim()).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
+  const productTotal=currentRows.reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
   productValue.textContent=productName+' — '+productTotal+' قطعة';
   productButton.textContent='✓ '+productName+' — تغيير ▾';
   customerButton.textContent='✓ العملاء — إخفاء ▴';
@@ -848,17 +857,28 @@ function renderOrders(){
           ordersViewState.storeId=selectedStoreId;
           ordersViewState.product=selectedProduct;
           ordersViewState.showCustomers=true;
-          const productTotal=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
-              String(o.product||o.productName||o.item||'').trim()===selectedProduct)
-            .reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
+          const matchingProductRows=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
+              String(o.product||o.productName||o.item||'').trim()===selectedProduct);
+          const productDates=[...new Set(matchingProductRows.map(o=>orderEffectiveDate(o)).filter(Boolean).filter(d=>!isMonthArchived(selectedStoreId,monthKey(d))))].sort();
+          const productCurrentDate=productDates.length?productDates[productDates.length-1]:'';
+          const productCurrentRows=productCurrentDate
+            ? matchingProductRows.filter(o=>orderEffectiveDate(o)===productCurrentDate)
+            : matchingProductRows.filter(o=>!orderEffectiveDate(o) || !isMonthArchived(selectedStoreId,monthKey(orderEffectiveDate(o))));
+          const productTotal=productCurrentRows.reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
           document.getElementById('ordersProductValue').textContent=selectedProduct+' — '+productTotal+' قطعة';
           productButton.textContent='✓ '+selectedProduct+' — تغيير ▾';
           productOptions.classList.remove('open');
 
+          const matchingRows=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
+                          String(o.product||o.productName||o.item||'').trim()===selectedProduct);
+          // اعرض عملاء أحدث فاتورة حالية فقط، واستبعد كل الفواتير المؤرشفة.
+          const currentDates=[...new Set(matchingRows.map(o=>orderEffectiveDate(o)).filter(Boolean).filter(d=>!isMonthArchived(selectedStoreId,monthKey(d))))].sort();
+          const currentDate=currentDates.length?currentDates[currentDates.length-1]:'';
+          const currentRows=currentDate
+            ? matchingRows.filter(o=>orderEffectiveDate(o)===currentDate)
+            : matchingRows.filter(o=>!orderEffectiveDate(o) || !isMonthArchived(selectedStoreId,monthKey(orderEffectiveDate(o))));
           const cm=new Map();
-          rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
-                          String(o.product||o.productName||o.item||'').trim()===selectedProduct)
-            .forEach(o=>{
+          currentRows.forEach(o=>{
               const name=String(o.name||o.customerName||o.customer||'').trim();
               if(name)cm.set(name,(cm.get(name)||0)+(Number(o.qty||o.quantity||1)||1));
             });
