@@ -20,7 +20,7 @@ main{max-width:1150px;margin:20px auto;padding:0 14px}.nav{display:flex;gap:8px;
 label{display:block;font-size:13px;font-weight:bold;margin:10px 0 6px}input,textarea,select{width:100%;padding:11px;border:1px solid #d7d0c8;border-radius:10px;background:#fff;font:inherit}textarea{min-height:150px;resize:vertical}.small{font-size:12px;color:var(--muted);line-height:1.6}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:14px}.stat b{display:block;font-size:22px;margin-top:4px}
 table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right}th{background:var(--soft);font-size:13px}.customer,.store,.productRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--line);border-radius:11px;margin:8px 0}.customer button,.store button,.productRow button{padding:7px 10px}.pill{display:inline-block;padding:3px 8px;border-radius:20px;background:#eee;font-size:11px}.hint{background:#fff9ed;border:1px solid #ead8b6;padding:11px;border-radius:10px;margin-top:12px}
-.invoice{max-width:780px;margin:auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:34px;box-shadow:0 10px 35px rgba(0,0,0,.06)}.invoice-brand{text-align:center;border-bottom:2px solid var(--gold);padding-bottom:18px;margin-bottom:20px}.invoice-brand img{width:78px;height:78px;object-fit:cover;border-radius:18px;border:2px solid #d9b878;display:block;margin:0 auto 8px}.invoice-brand-title{font-size:18px;font-weight:800;letter-spacing:.3px}.invoice-head{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line);padding-bottom:16px}.invoice-items{margin-top:20px}.invoice-items th,.invoice-items td{padding:12px 10px}.invoice-items tbody tr:last-child td{border-bottom:0}.invoice-total-box{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:24px;padding:16px 18px;border:2px solid var(--gold);border-radius:14px;background:var(--soft)}.invoice-total-label{font-weight:800;font-size:17px}.invoice-total-value{font-size:24px;font-weight:900}.invoice-footer{text-align:center;color:var(--muted);font-size:11px;margin-top:22px}.total{text-align:left;font-size:20px;font-weight:bold;margin-top:20px}.balance{display:none}
+.invoice{max-width:780px;margin:auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px}.invoice-head{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line);padding-bottom:16px}.total{text-align:left;font-size:20px;font-weight:bold;margin-top:20px}.balance{display:flex;justify-content:flex-end;gap:18px;margin-top:8px;font-size:14px}
 .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:18px;z-index:10}.modal.open{display:flex}.modalBox{background:#fff;border-radius:16px;padding:20px;width:min(520px,100%)}.modalBox h3{margin-top:0}
 @media(max-width:760px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.invoice-head{display:block}}
 @media print{body{background:#fff}.no-print,header,main>.nav{display:none!important}.view{display:none!important}#invoiceView{display:block!important}.invoice{border:0}}
@@ -117,11 +117,6 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 .orders-customer-controls button:hover{background:#f5eadf}
 .orders-customer-controls .remove{width:auto;padding:0 8px;color:#9b2c2c}
 </style>
-
-<style id="invoice-archive-ui">
-.invoice-hub{margin-bottom:18px}.invoice-hub-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.invoice-hub-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}.invoice-hub-card h3{margin:0 0 8px}.invoice-month-pill{display:inline-block;padding:5px 10px;border-radius:999px;background:#f3e7d8;color:#6b4226;font-weight:800;font-size:12px}.invoice-month-pill.archived{background:#eee;color:#666}.invoice-customer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-top:9px;background:#fff}.invoice-customer-row .meta{color:var(--muted);font-size:12px;margin-top:3px}.invoice-hub-empty{padding:18px;text-align:center;color:var(--muted)}
-@media(max-width:760px){.invoice-hub-grid{grid-template-columns:1fr}}
-</style>
 </head>
 <body>
 <header><div class="brand"><img class="logo" src="icon-180.png" alt="Ordry logo"><div><h1>Ordry</h1><p>by Advira • Smart Orders. Simple Invoices.</p></div></div></header>
@@ -134,7 +129,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 
 <section id="add" class="view active"><div class="grid">
 <div class="card"><h2>إضافة منتج وطلبات</h2>
-<label>المتجر</label><select id="storeSelect" onchange="renderProductSelect();refreshContinueInvoiceDates()"></select>
+<label>المتجر</label><select id="storeSelect" onchange="renderProductSelect()"></select>
 <label>المنتج المحفوظ</label><select id="productSelect" onchange="fillPrice()"><option value="">-- اختاري المنتج --</option></select>
 <label>أو منتج جديد</label><input id="newProduct" placeholder="مثال: عطر Burberry">
 <label>السعر</label><input id="price" type="number" step="0.01" placeholder="15">
@@ -144,11 +139,8 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
   <div id="customerSuggestions" class="customer-suggestions"></div>
 </div>
 <div class="small">اكتبي كل عميلة في سطر. لو العميلة واخدة أكتر من قطعة اكتبي بعد اسمها + والعدد، مثل: مني +4 = ٤ قطع. الاسم فقط = قطعة واحدة.</div>
-<div class="field"><label>🧾 نوع الفاتورة لهذا الإدخال</label><div class="actions" style="margin-top:6px"><button type="button" id="newInvoiceModeBtn" class="gold" onclick="setEntryInvoiceMode('new')">🆕 فاتورة جديدة</button><button type="button" id="continueInvoiceModeBtn" class="secondary" onclick="setEntryInvoiceMode('continue')">↩️ استكمال فاتورة قديمة</button></div><div id="entryInvoiceModeText" class="small" style="margin-top:8px">سيتم إنشاء الإدخال على تاريخ جديد (تاريخ اليوم).</div></div>
-<div class="field"><label>📅 تاريخ الطلب / الفاتورة</label><input id="orderDate" type="date" onchange="syncEntryInvoiceModeFromDate()"></div>
-<div id="continueInvoiceBox" class="field" style="display:none"><label>📂 اختاري تاريخ الفاتورة القديمة</label><select id="continueInvoiceDate" onchange="applyContinueInvoiceDate()"><option value="">-- اختاري التاريخ --</option></select></div>
-<div class="actions"><button class="gold" onclick="addBatch()">💾 حفظ الطلبات</button><button class="secondary" onclick="clearForm()">مسح</button></div>
-<div class="hint">💡 <b>فاتورة جديدة</b> = تاريخ جديد مستقل. <b>استكمال فاتورة قديمة</b> = اختاري تاريخًا سابقًا، وسيُضاف الطلب لنفس حساب ذلك التاريخ.</div>
+<div class="field"><label>📅 تاريخ الطلب</label><input id="orderDate" type="date"></div><div class="actions"><button class="gold" onclick="addBatch()">💾 حفظ الطلبات</button><button class="secondary" onclick="clearForm()">مسح</button></div>
+<div class="hint">💡 بعد الحفظ يفضل <b>نفس المتجر</b> مختارًا؛ غيري المنتج والأسماء فقط وكمّلي.</div>
 </div>
 <div class="card"><h2>ملخص سريع</h2><div class="stats">
 <div class="stat">الطلبات<b id="statOrders">0</b></div><div class="stat">العميلات<b id="statCustomers">0</b></div><div class="stat">الإجمالي<b id="statTotal">$0.00</b></div>
@@ -168,7 +160,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 <div class="card"><h2>🏪 إضافة متجر</h2><label>اسم المتجر</label><input id="storeName" placeholder="ASMR Fashion"><label>رقم التواصل</label><input id="storePhone" placeholder="+1 ..."><label>معلومة على الفاتورة</label><input id="storeInfo" placeholder="Shipping all USA"><div class="actions"><button class="gold" onclick="addStore()">حفظ المتجر</button></div></div>
 <div class="card"><h2>المتاجر</h2><div id="storeList"></div></div></div></section>
 
-<section id="customers" class="view"><div class="card"><h2>👩‍💼 العميلات</h2><div class="hint" style="margin-bottom:12px"><b>🏪 اختاري المتجر</b><div class="small">كل متجر له عميلاته بشكل منفصل. اختاري المتجر ثم ابحثي باسم العميلة.</div></div><label>المتجر</label><select id="customerStoreFilter" onchange="setCustomerStoreFilter(this.value)"><option value="">-- اختاري المتجر --</option></select><label>بحث عن العميلة</label><input id="customerSearch" oninput="renderCustomers()" placeholder="اكتبي أول حرفين أو جزء من الاسم"><div id="customerList" style="margin-top:10px"></div></div></section>
+<section id="customers" class="view"><div class="card"><h2>👩‍💼 العميلات</h2><input id="customerSearch" oninput="renderCustomers()" placeholder="ابحثي بالاسم"><div id="customerList" style="margin-top:10px"></div></div></section>
 <section id="orders" class="view"><div class="card"><h2>📦 كل الطلبات — التاريخ يُسجّل تلقائيًا</h2><div id="orderList"></div></div></section>
 <section id="settings" class="view"><div class="grid">
 <div class="card"><h2>⚙️ بيانات العميلة</h2>
@@ -179,10 +171,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 </div>
 <div class="card"><h2>📋 العميلات المحفوظة</h2><div id="savedCustomers"></div></div>
 </div></section>
-<section id="invoiceView" class="view">
-<div id="invoiceHub" class="card invoice-hub"></div>
-<div id="invoiceBox" class="card"><h2>🧾 الفاتورة</h2><p class="small">اختاري عميلة من قسم الفواتير بالأعلى.</p></div>
-</section>
+<section id="invoiceView" class="view"><div id="invoiceBox" class="card"><h2>🧾 الفاتورة</h2><p class="small">اختاري عميلة من صفحة العميلات.</p></div></section>
 
 <section id="cloud" class="view"><div class="grid">
 <div class="card"><h2>☁️ تشغيل Ordry أونلاين</h2>
@@ -281,7 +270,7 @@ document.addEventListener('click',function(e){
 <script>
 let sb=null, cloudUser=null, cloudBusy=false;
 const CLOUD_CFG='ordria_cloud_cfg_v1';
-function cloudPayload(){return {orders,stores,products,customers,invoiceArchives:JSON.parse(localStorage.getItem('ordry_invoice_archives_v1')||'{}')};}
+function cloudPayload(){return {orders,stores,products,customers};}
 function setCloudStatus(t){let e=document.getElementById('cloudStatus');if(e)e.textContent='الحالة: '+t}
 function saveCloudConfig(){localStorage.setItem(CLOUD_CFG,JSON.stringify({url:sbUrl.value.trim(),key:sbKey.value.trim()}));initCloud()}
 async function initCloud(){try{let c=JSON.parse(localStorage.getItem(CLOUD_CFG)||'{}');if(!c.url||!c.key){setCloudStatus('اكتبي Project URL و Anon Key أولاً');return}if(!window.supabase){setCloudStatus('تعذر تحميل مكتبة السحابة');return}sb=window.supabase.createClient(c.url,c.key);
@@ -308,7 +297,7 @@ async function updatePasswordCloud(){try{if(!sb)await initCloud();if(!sb)return;
 async function signOutCloud(){if(sb)await sb.auth.signOut();cloudUser=null;setCloudStatus('تم تسجيل الخروج')}
 async function updateCloudPassword(){try{if(!sb)await initCloud();let p=document.getElementById('newPass').value,p2=document.getElementById('newPass2').value;if(!p||p.length<8){alert('كلمة السر لازم تكون 8 أحرف أو أكثر');return}if(p!==p2){alert('كلمتا السر غير متطابقتين');return}let r=await sb.auth.updateUser({password:p});if(r.error)throw r.error;document.getElementById('recoveryBox').style.display='none';document.getElementById('newPass').value='';document.getElementById('newPass2').value='';setCloudStatus('تم تغيير كلمة السر بنجاح • '+(r.data.user?.email||''));alert('تم تغيير كلمة السر بنجاح ❤️ يمكنك الآن استخدام دخول');}catch(e){alert(e.message)}}
 async function cloudSave(){if(!sb||!cloudUser||cloudBusy)return;cloudBusy=true;try{let r=await sb.from('ordria_data').upsert({user_id:cloudUser.id,payload:cloudPayload(),updated_at:new Date().toISOString()});if(r.error)throw r.error;setCloudStatus('متصل • آخر حفظ الآن')}catch(e){setCloudStatus('خطأ في الحفظ: '+e.message)}finally{cloudBusy=false}}
-async function cloudLoad(){if(!sb||!cloudUser)return;try{let r=await sb.from('ordria_data').select('payload').eq('user_id',cloudUser.id).maybeSingle();if(r.error)throw r.error;if(r.data?.payload){let x=r.data.payload;orders=x.orders||[];stores=x.stores||[];products=x.products||[];customers=x.customers||{};localStorage.setItem('ordry_invoice_archives_v1',JSON.stringify(x.invoiceArchives||{}));localStorage.setItem(OK,JSON.stringify(orders));localStorage.setItem(SK,JSON.stringify(stores));localStorage.setItem(PK,JSON.stringify(products));localStorage.setItem('ordria_customers_v5',JSON.stringify(customers));renderAll();setCloudStatus('تم تحميل بيانات السحابة • '+cloudUser.email)}else{await cloudSave();setCloudStatus('تم إنشاء نسخة السحابة')}}catch(e){setCloudStatus('خطأ في التحميل: '+e.message)}}
+async function cloudLoad(){if(!sb||!cloudUser)return;try{let r=await sb.from('ordria_data').select('payload').eq('user_id',cloudUser.id).maybeSingle();if(r.error)throw r.error;if(r.data?.payload){let x=r.data.payload;orders=x.orders||[];stores=x.stores||[];products=x.products||[];customers=x.customers||{};localStorage.setItem(OK,JSON.stringify(orders));localStorage.setItem(SK,JSON.stringify(stores));localStorage.setItem(PK,JSON.stringify(products));localStorage.setItem('ordria_customers_v5',JSON.stringify(customers));renderAll();setCloudStatus('تم تحميل بيانات السحابة • '+cloudUser.email)}else{await cloudSave();setCloudStatus('تم إنشاء نسخة السحابة')}}catch(e){setCloudStatus('خطأ في التحميل: '+e.message)}}
 function copySQL(){navigator.clipboard.writeText(document.getElementById('sqlBox').innerText);alert('اتنسخ الكود ❤️')}
 const OK='ordria_orders_v4',SK='ordria_stores_v4',PK='ordria_products_v4';
 let orders=JSON.parse(localStorage.getItem(OK)||'[]'),stores=JSON.parse(localStorage.getItem(SK)||'[]'),products=JSON.parse(localStorage.getItem(PK)||'[]'),customers=JSON.parse(localStorage.getItem('ordria_customers_v5')||'{}'),editingId=null;
@@ -466,84 +455,22 @@ function parseCustomerLine(line){
   }
   return {name:raw,qty:1};
 }
-function entryInvoiceDates(){
-  const sid=String(document.getElementById('storeSelect')?.value||'');
-  const dates=[...new Set((orders||[]).filter(o=>String(o.storeId||'')===sid).map(orderEffectiveDate).filter(Boolean))].sort().reverse();
-  return dates;
-}
-function refreshContinueInvoiceDates(){
-  const sel=document.getElementById('continueInvoiceDate'); if(!sel)return;
-  const current=sel.value;
-  const dates=entryInvoiceDates();
-  sel.innerHTML='<option value="">-- اختاري التاريخ --</option>'+dates.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
-  if(current && dates.includes(current)) sel.value=current;
-}
-function setEntryInvoiceMode(mode){
-  const newBtn=document.getElementById('newInvoiceModeBtn'), oldBtn=document.getElementById('continueInvoiceModeBtn'), box=document.getElementById('continueInvoiceBox'), date=document.getElementById('orderDate'), txt=document.getElementById('entryInvoiceModeText');
-  if(!newBtn||!oldBtn||!box||!date||!txt)return;
-  window.entryInvoiceMode=mode;
-  if(mode==='continue'){
-    newBtn.classList.remove('gold'); newBtn.classList.add('secondary');
-    oldBtn.classList.remove('secondary'); oldBtn.classList.add('gold');
-    box.style.display='block'; refreshContinueInvoiceDates();
-    const dates=entryInvoiceDates();
-    if(dates.length){ document.getElementById('continueInvoiceDate').value=dates[0]; date.value=dates[0]; }
-    txt.textContent='سيتم إضافة الطلب على الفاتورة القديمة التي تختارين تاريخها.';
-  }else{
-    newBtn.classList.remove('secondary'); newBtn.classList.add('gold');
-    oldBtn.classList.remove('gold'); oldBtn.classList.add('secondary');
-    box.style.display='none';
-    date.value=todayLocalDate();
-    txt.textContent='سيتم إنشاء إدخال جديد منفصل على تاريخ اليوم.';
-  }
-}
-function applyContinueInvoiceDate(){
-  const v=document.getElementById('continueInvoiceDate')?.value;
-  if(v){ const d=document.getElementById('orderDate'); if(d)d.value=v; }
-}
-function syncEntryInvoiceModeFromDate(){
-  const mode=window.entryInvoiceMode||'new';
-  if(mode==='continue')applyContinueInvoiceDate();
-}
 function addBatch(){
   let sid=String(storeSelect.value||''),p=productSelect.value?products.find(x=>String(x.id)===String(productSelect.value)):null,
       pname=p?p.name:newProduct.value.trim(),pr=p?Number(p.price):Number(price.value),
       lines=names.value.split(/\n+/).map(x=>x.trim()).filter(Boolean),
       parsed=lines.map(parseCustomerLine).filter(Boolean),
-      orderDate=(document.getElementById('orderDate')?.value)||todayLocalDate(),
-      mode=window.entryInvoiceMode||'new';
+      orderDate=(document.getElementById('orderDate')?.value)||new Date().toISOString().slice(0,10);
   if(!sid||!pname||!pr||!parsed.length)return alert('اختاري المتجر واكتبي/اختاري المنتج والسعر والأسماء.');
-  if(mode==='continue'){
-    const oldDate=document.getElementById('continueInvoiceDate')?.value||'';
-    if(!oldDate)return alert('اختاري تاريخ الفاتورة القديمة التي تريدين الاستكمال عليها.');
-    orderDate=oldDate;
-  }else{
-    if(!orderDate)return alert('اختاري تاريخ الفاتورة الجديدة.');
-  }
   parsed.forEach(item=>orders.push({id:'o_'+Date.now()+Math.random(),storeId:sid,name:item.name,product:pname,price:pr,qty:item.qty,orderDate,createdAt:new Date().toISOString()}));
   if(!p&&!products.some(x=>String(x.storeId)===String(sid)&&String(x.name).trim()===String(pname).trim()&&Number(x.price)===pr))products.push({id:'p_'+Date.now()+Math.random(),name:pname,price:pr,storeId:sid});
   persist();clearForm(true);
-  refreshContinueInvoiceDates();
   const pieces=parsed.reduce((sum,x)=>sum+x.qty,0);
-  alert((mode==='continue'?'تم الاستكمال على فاتورة تاريخ ':'تم إنشاء فاتورة جديدة بتاريخ ')+orderDate+' — تم حفظ '+pieces+' قطعة لـ '+parsed.length+' عميلة ❤️');
+  alert('تم حفظ '+pieces+' قطعة لـ '+parsed.length+' عميلة ❤️');
 }
-
 function clearForm(keep=true){let sid=storeSelect.value;productSelect.value='';newProduct.value='';price.value='';names.value='';if(keep)storeSelect.value=sid}
 function groups(){let m={};orders.forEach(o=>{let k=o.storeId+'||'+o.name.trim();(m[k]??=[]).push(o)});return m}
-let customerStoreFilter=localStorage.getItem('ordria_customer_store_filter_v1')||'';
-function setCustomerStoreFilter(v){customerStoreFilter=String(v||'');localStorage.setItem('ordria_customer_store_filter_v1',customerStoreFilter);renderCustomers();}
-function renderCustomerStoreFilter(){const el=document.getElementById('customerStoreFilter');if(!el)return;const old=customerStoreFilter;el.innerHTML='<option value="">-- اختاري المتجر --</option>'+stores.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');if(stores.some(s=>String(s.id)===String(old)))el.value=old;else if(stores.length===1){customerStoreFilter=stores[0].id;el.value=customerStoreFilter;localStorage.setItem('ordria_customer_store_filter_v1',customerStoreFilter);}}
-function deleteCustomerFromStore(storeIdEnc,nameEnc){
-  const storeId=decodeURIComponent(storeIdEnc||'');
-  const name=decodeURIComponent(nameEnc||'');
-  if(!storeId||!name)return;
-  if(!confirm('حذف العميلة من هذا المتجر؟ سيتم حذف طلباتها لهذا المتجر فقط، وسيظل اسمها محفوظًا للبحث واستخدامه لاحقًا.'))return;
-  orders=(orders||[]).filter(o=>!(String(o.storeId||'')===String(storeId)&&String(o.name||o.customerName||o.customer||'').trim()===name.trim()));
-  persist();
-  renderCustomers();
-}
-
-function renderCustomers(){renderCustomerStoreFilter();let q=(customerSearch.value||'').trim().toLowerCase(),m=groups();if(!customerStoreFilter){customerList.innerHTML='<p class="small">👆 اختاري متجرًا أولًا لعرض عميلاته.</p>';return;}let arr=Object.keys(m).filter(k=>String(m[k][0].storeId||'')===String(customerStoreFilter)&&String(m[k][0].name||'').toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>String(x.id)===String(o.storeId))||{name:'غير محدد'},t=a.reduce((x,y)=>x+(Number(y.price)||0)*(Number(y.qty||y.quantity||1)||1),0),pieces=a.reduce((x,y)=>x+(Number(y.qty||y.quantity||1)||1),0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${pieces} قطعة • <b>$${t.toFixed(2)}</b></div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="secondary" onclick="editCustomer('${encodeURIComponent(o.name)}')">✏️ تعديل الاسم</button><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button><button class="danger" onclick="deleteCustomerFromStore('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🗑️ حذف</button></div></div>`}).join(''):'<p class="small">لا توجد عميلات لهذا المتجر بهذا البحث.</p>'}
+function renderCustomers(){let q=(customerSearch.value||'').trim().toLowerCase(),m=groups(),arr=Object.keys(m).filter(k=>m[k][0].name.toLowerCase().includes(q)).sort((a,b)=>m[a][0].name.localeCompare(m[b][0].name,'ar'));customerList.innerHTML=arr.length?arr.map(k=>{let a=m[k],o=a[0],s=stores.find(x=>x.id===o.storeId)||{name:'غير محدد'},t=a.reduce((x,y)=>x+y.price,0);return `<div class="customer"><div><b>${esc(o.name)}</b><div class="small"><span class="pill">${esc(s.name)}</span> • ${a.length} منتج • <b>$${t.toFixed(2)}</b></div></div><button class="secondary" onclick="editCustomer('${encodeURIComponent(o.name)}')">✏️ تعديل الاسم</button><button onclick="invoice('${encodeURIComponent(o.storeId)}','${encodeURIComponent(o.name)}')">🧾 الفاتورة</button></div>`}).join(''):'<p class="small">لا توجد نتائج.</p>'}
 
 function adjustOrderCustomerQty(storeId,productName,customerName,delta){
   const list=orders||[];
@@ -804,146 +731,37 @@ function openEdit(id){let o=orders.find(x=>x.id===id);if(!o)return;editingId=id;
 function closeEdit(){editingId=null;editModal.classList.remove('open')}
 function saveEdit(){let o=orders.find(x=>x.id===editingId),n=editName.value.trim(),p=editProduct.value.trim(),v=Number(editPrice.value);if(!o||!n||!p||!v)return alert('راجعي البيانات.');o.name=n;o.product=p;o.price=v;persist();closeEdit()}
 function del(id){if(confirm('حذف الطلب؟')){orders=orders.filter(o=>o.id!==id);persist()}}
-function normalizeOrderDate(v){
-  const x=String(v||'').trim();
-  if(!x)return '';
-  // YYYY-MM-DD or ISO datetime
-  let m=x.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m)return `${m[1]}-${m[2]}-${m[3]}`;
-  // DD/MM/YYYY or DD-MM-YYYY
-  m=x.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);
-  if(m)return `${m[3]}-${m[2]}-${m[1]}`;
-  return x;
-}
-function orderEffectiveDate(o){
-  const d=normalizeOrderDate(o&&o.orderDate);
-  if(d)return d;
-  return normalizeOrderDate(o&&o.createdAt);
-}
-function cleanKey(v){
-  return String(v||'').replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim().toLocaleLowerCase('ar');
-}
-function findStoreForOrder(o){
-  const sid=String(o&&o.storeId||'');
-  let st=stores.find(x=>String(x.id)===sid);
-  if(st)return st;
-  const sn=cleanKey(o&& (o.storeName||o.store||''));
-  if(sn) st=stores.find(x=>cleanKey(x.name)===sn);
-  return st||null;
-}
-const INVOICE_ARCHIVE_KEY='ordry_invoice_archives_v1';
-function invoiceArchives(){try{return JSON.parse(localStorage.getItem(INVOICE_ARCHIVE_KEY)||'{}')||{}}catch(e){return {}}}
-function saveInvoiceArchives(x){localStorage.setItem(INVOICE_ARCHIVE_KEY,JSON.stringify(x));cloudSave().catch(()=>{})}
-function monthKey(date){const d=normalizeOrderDate(date)||todayLocalDate();return d.slice(0,7)}
-function monthLabel(m){if(!m)return '';const [y,mo]=m.split('-');return `شهر ${mo}/${y}`}
-function storeMonthOrders(sid){return orders.filter(o=>{const st=findStoreForOrder(o);return st&&String(st.id)===String(sid)&&orderEffectiveDate(o)})}
-function invoiceMonthData(sid){const map={};storeMonthOrders(sid).forEach(o=>{const m=monthKey(orderEffectiveDate(o));(map[m]??=[]).push(o)});return map}
-function isMonthArchived(sid,m){const a=invoiceArchives();return !!a[`${sid}||${m}`]}
-function archiveInvoiceMonth(sid,m){
-  if(!sid||!m)return;
-  const key=`${sid}||${m}`;
-  const a=invoiceArchives();
-  if(a[key]){if(!confirm(`شهر ${m} مؤرشف بالفعل. هل تريدين فتحه مرة أخرى؟`))return;delete a[key];}
-  else {if(!confirm(`سيتم أرشفة ${monthLabel(m)} لهذا المتجر فقط. الطلبات والفواتير لن تُحذف، وأسماء العميلات ستظل محفوظة. متابعة؟`))return;a[key]={archivedAt:new Date().toISOString()};}
-  saveInvoiceArchives(a);renderInvoiceHub();
-}
-function invoiceHubOpenCustomer(sid,name,date){invoice(encodeURIComponent(sid),encodeURIComponent(name),encodeURIComponent(date));}
-function renderInvoiceHub(){
-  const hub=document.getElementById('invoiceHub'); if(!hub)return;
-  const oldStore=document.getElementById('invoiceHubStore')?.value||'';
-  const oldMonth=document.getElementById('invoiceHubMonth')?.value||'';
-  const oldMode=document.getElementById('invoiceHubMode')?.value||'current';
-  if(!stores.length){hub.innerHTML='<div class="invoice-hub-empty">أضيفي متجرًا أولًا علشان نعرض فواتيره.</div>';return;}
-  const sid=stores.some(s=>String(s.id)===String(oldStore))?oldStore:String(stores[0].id);
-  const months=Object.keys(invoiceMonthData(sid)).sort().reverse();
-  const archivedMonths=months.filter(m=>isMonthArchived(sid,m));
-  const currentMonths=months.filter(m=>!isMonthArchived(sid,m));
-  const mode=(oldMode==='archive'?'archive':'current');
-  const listMonths=mode==='archive'?archivedMonths:currentMonths;
-  let month= listMonths.includes(oldMonth)?oldMonth:(listMonths[0]||'');
-  const data=invoiceMonthData(sid)[month]||[];
-  const customersBy={};
-  data.forEach(o=>{const key=cleanKey(o.name||'');if(!key)return;if(!customersBy[key])customersBy[key]={name:o.name,orders:[],total:0,pieces:0};customersBy[key].orders.push(o);customersBy[key].total+=(Number(o.price)||0)*(Number(o.qty||o.quantity||1)||1);customersBy[key].pieces+=Number(o.qty||o.quantity||1)||1;});
-  const custs=Object.values(customersBy).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
-  hub.innerHTML=`<div class="invoice-hub-grid">
-    <div class="invoice-hub-card"><h3>🏪 المتجر</h3><select id="invoiceHubStore" onchange="renderInvoiceHub()">${stores.map(st=>`<option value="${esc(st.id)}" ${String(st.id)===String(sid)?'selected':''}>${esc(st.name)}</option>`).join('')}</select></div>
-    <div class="invoice-hub-card"><h3>📂 القسم</h3><select id="invoiceHubMode" onchange="renderInvoiceHub()"><option value="current" ${mode==='current'?'selected':''}>🧾 الفواتير الحالية</option><option value="archive" ${mode==='archive'?'selected':''}>📦 الأرشيف</option></select><div class="small" style="margin-top:7px">الأرشيف خاص بهذا المتجر فقط ولا يحذف أي بيانات.</div></div>
-    <div class="invoice-hub-card"><h3>📅 الشهر</h3><select id="invoiceHubMonth" onchange="renderInvoiceHub()"><option value="">-- اختاري الشهر --</option>${listMonths.map(m=>`<option value="${esc(m)}" ${m===month?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select>${month?`<div style="margin-top:9px"><span class="invoice-month-pill ${isMonthArchived(sid,month)?'archived':''}">${isMonthArchived(sid,month)?'📦 مؤرشف':'🟢 حالي'}</span></div>`:''}</div>
-  </div>
-  ${month?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(monthLabel(month))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(month)}')">${isMonthArchived(sid,month)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div>
-  <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" onclick="invoiceHubOpenCustomer('${encodeURIComponent(sid)}','${encodeURIComponent(c.name)}','${encodeURIComponent(month)}')">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير لهذا الشهر.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وشهرًا لعرض الفواتير.</div>'}`;
-}
-
 function invoice(sidEnc,nEnc,dateEnc){
-  const sid=decodeURIComponent(sidEnc), n=decodeURIComponent(nEnc);
-  const allCustomerOrders=orders.filter(o=>{
-    const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(n);
-    if(!sameName)return false;
-    const st=findStoreForOrder(o);
-    return String(o.storeId||'')===String(sid)|| (st&&String(st.id)===String(sid));
-  });
-  const availableDates=[...new Set(allCustomerOrders.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
-  const requested=dateEnc?normalizeOrderDate(decodeURIComponent(dateEnc)):'';
-  // From the customer page, automatically use the most recent date that actually has orders.
-  // A manually selected date remains isolated.
-  const selectedDate=requested||availableDates[0]||todayLocalDate();
+  let sid=decodeURIComponent(sidEnc),n=decodeURIComponent(nEnc);
+  const allCustomerOrders=orders.filter(o=>String(o.storeId)===String(sid)&&String(o.name||'').trim()===String(n).trim());
+  const availableDates=[...new Set(allCustomerOrders.map(o=>String(o.orderDate||'')).filter(Boolean))].sort().reverse();
+  let selectedDate=dateEnc?decodeURIComponent(dateEnc):((availableDates[0])||todayLocalDate());
   renderInvoice(sid,n,selectedDate,availableDates);
 }
 function renderInvoice(sid,n,selectedDate,availableDates){
-  selectedDate=normalizeOrderDate(selectedDate)||todayLocalDate();
-  const customerOrders=orders.filter(o=>{
-    const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(n);
-    if(!sameName)return false;
-    const st=findStoreForOrder(o);
-    return String(o.storeId||'')===String(sid)|| (st&&String(st.id)===String(sid));
-  });
-  const dates=[...new Set(customerOrders.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
-  const allMode=selectedDate==='__ALL__';
-  const a=allMode?customerOrders:customerOrders.filter(o=>orderEffectiveDate(o)===selectedDate);
-  const s=stores.find(x=>String(x.id)===String(sid))||findStoreForOrder(customerOrders[0])||{name:'متجر',phone:'',info:''};
-
-  // Merge repeated products even when names contain extra spaces/zero-width characters.
-  const merged={};
-  a.forEach(o=>{
-    const product=String(o.product||o.productName||o.item||'').replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim();
-    if(!product)return;
-    const key=cleanKey(product);
-    const q=Math.max(1,Number(o.qty||o.quantity||1)||1);
-    const price=Number(o.price)||0;
-    if(!merged[key]) merged[key]={product,qty:0,total:0,price:price,prices:[]};
-    merged[key].qty+=q;
-    merged[key].total+=price*q;
-    merged[key].prices.push(price);
-  });
-  const lines=Object.values(merged);
-  const subtotal=lines.reduce((x,y)=>x+y.total,0);
-  const safeNumSeed=(String(allMode?todayLocalDate():selectedDate).replace(/\D/g,'').slice(-8)||'00000000');
-  const num='ORD-'+safeNumSeed+'-'+String(Math.abs((cleanKey(n).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900)+100));
-
+  const a=orders.filter(o=>String(o.storeId)===String(sid)&&String(o.name||'').trim()===String(n).trim()&&String(o.orderDate||'')===String(selectedDate));
+  const allCustomerOrders=orders.filter(o=>String(o.storeId)===String(sid)&&String(o.name||'').trim()===String(n).trim());
+  const dates=[...new Set(allCustomerOrders.map(o=>String(o.orderDate||'')).filter(Boolean))].sort().reverse();
+  const s=stores.find(x=>x.id===sid)||{name:'متجر',phone:'',info:''};
+  const subtotal=a.reduce((x,y)=>x+y.price*(Number(y.qty||y.quantity||1)||1),0);
+  const num='ORD-'+String(selectedDate||todayLocalDate()).replace(/-/g,'')+'-'+Math.floor(Math.random()*900+100);
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));invoiceView.classList.add('active');
   const dateOptions=dates.map(d=>`<option value="${esc(d)}" ${d===selectedDate?'selected':''}>${esc(d)}</option>`).join('');
-  const allOption=`<option value="__ALL__" ${allMode?'selected':''}>كل التواريخ — عرض كل الطلبات</option>`;
-  const emptyText=dates.length
-    ? `لا توجد طلبات لهذه العميلة في تاريخ <b>${esc(selectedDate)}</b>. اختاري تاريخًا آخر من القائمة، أو «كل التواريخ» لعرض كل طلباتها.`
-    : `لا توجد تواريخ مسجلة لهذه العميلة. إذا كانت الطلبات موجودة في صفحة الطلبات، اختاري «كل التواريخ» أو راجعي صفحة الطلبات.`;
-
-  invoiceBox.innerHTML=`<div class="invoice">
-  <div class="no-print"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
-  <div class="hint no-print" style="margin-bottom:15px"><b>📅 تاريخ الفاتورة</b><div class="small">اختاري تاريخًا لعرض طلباته فقط، أو «كل التواريخ» لعرض كل طلبات العميلة. التاريخ الجديد يظل منفصلًا عن التواريخ القديمة.</div><div class="actions"><select id="invoiceDateSelect" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)"><option value="">اختاري التاريخ</option>${allOption}${dateOptions}</select><input id="invoiceNewDate" type="date" value="${allMode?'':esc(selectedDate)}" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)"></div></div>
-  <div class="invoice-brand"><img src="icon-180.png" alt="Ordry"><div class="invoice-brand-title">Ordry by Advira</div></div>
+  invoiceBox.innerHTML=`<div class="invoice"><div class="no-print"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
+  <div class="hint no-print" style="margin-bottom:15px"><b>📅 تاريخ الفاتورة</b><div class="small">اختاري تاريخ قديم لعرض الفاتورة القديمة، أو اختاري تاريخ جديد بعد تسجيل الطلبات الجديدة.</div><div class="actions"><select id="invoiceDateSelect" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)">${dateOptions}</select><input id="invoiceNewDate" type="date" value="${esc(selectedDate)}" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)"></div></div>
   <div class="invoice-head"><div><h2 style="margin:0">${esc(s.name)}</h2><div class="small">${esc(s.phone||'')} ${s.info?'• '+esc(s.info):''}</div></div>
-  <div><b>فاتورة:</b> ${num}<br><b>التاريخ:</b> ${allMode?'كل التواريخ':esc(selectedDate)}<br><b>العميلة:</b> ${esc(n)}</div></div>
-  ${lines.length?`<table class="invoice-items"><thead><tr><th>المنتج</th><th>السعر</th><th>عدد القطع</th><th>إجمالي المنتج</th></tr></thead><tbody>${lines.map(o=>{const unique=[...new Set(o.prices.map(v=>Number(v).toFixed(2)))];const unit=unique.length===1?`$${Number(o.price).toFixed(2)}`:'متعدد';return `<tr><td>${esc(o.product)}</td><td>${unit}</td><td>${o.qty}</td><td>$${o.total.toFixed(2)}</td></tr>`}).join('')}</tbody></table>`:`<div class="hint" style="margin-top:18px">${emptyText}</div>`}
-  <div class="invoice-total-box"><span class="invoice-total-label">الإجمالي</span><span class="invoice-total-value">$${subtotal.toFixed(2)}</span></div>
-  <div class="invoice-footer">شكرًا لثقتك ❤️</div>
+  <div><b>فاتورة:</b> ${num}<br><b>التاريخ:</b> ${esc(selectedDate)}<br><b>العميلة:</b> ${esc(n)}</div></div>
+  ${a.length?`<table style="margin-top:18px"><thead><tr><th>المنتج</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${a.map(o=>{const q=Number(o.qty||o.quantity||1)||1;return `<tr><td>${esc(o.product)}</td><td>${q}</td><td>$${Number(o.price).toFixed(2)}</td><td>$${(o.price*q).toFixed(2)}</td></tr>`}).join('')}</tbody></table>`:`<div class="hint" style="margin-top:18px">لا توجد طلبات لهذه العميلة في تاريخ <b>${esc(selectedDate)}</b>. سجلي الطلبات بهذا التاريخ من صفحة إدخال الطلبات، ثم ارجعي للفواتير.</div>`}
+  <div style="margin-top:18px;max-width:360px;margin-right:auto"><label>الخصم</label><input id="invDiscount" type="number" value="0" min="0" step=".01" oninput="calcInvoice(${subtotal})"><label>الشحن</label><input id="invShipping" type="number" value="0" min="0" step=".01" oninput="calcInvoice(${subtotal})"><label>المدفوع</label><input id="invPaid" type="number" value="0" min="0" step=".01" oninput="calcInvoice(${subtotal})"></div>
+  <div id="invoiceCalc"><div class="total">الإجمالي: $${subtotal.toFixed(2)}</div><div class="balance">المدفوع: $0.00 • المتبقي: $${subtotal.toFixed(2)}</div></div>
   </div>`;
 }
 
-function calcInvoice(sub){return;}
+function calcInvoice(sub){let d=Number(invDiscount.value)||0,sh=Number(invShipping.value)||0,paid=Number(invPaid.value)||0,total=Math.max(0,sub-d+sh),bal=Math.max(0,total-paid);invoiceCalc.innerHTML=`<div class="total">الإجمالي: $${total.toFixed(2)}</div><div class="balance">المدفوع: $${paid.toFixed(2)} • المتبقي: $${bal.toFixed(2)}</div>`}
 
 function saveCustomer(){
  let n=custName.value.trim(); if(!n)return alert('اكتبي اسم العميلة.');
- customers[n]={...(customers[n]||{}),phone:custPhone.value.trim(),notes:custNotes.value.trim(),hiddenFromSavedList:false};
+ customers[n]={phone:custPhone.value.trim(),notes:custNotes.value.trim()};
  persist(); custName.value='';custPhone.value='';custNotes.value=''; alert('تم حفظ بيانات العميلة ❤️');
 }
 function editCustomer(n){
@@ -951,19 +769,11 @@ function editCustomer(n){
  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));settings.classList.add('active');
 }
 function renderSavedCustomers(){
- let names=Object.keys(customers).filter(n=>!customers[n]?.hiddenFromSavedList).sort((a,b)=>a.localeCompare(b,'ar'));
- savedCustomers.innerHTML=names.length?names.map(n=>`<div class="customer"><div><b>${esc(n)}</b><div class="small">${esc(customers[n].phone||'لا يوجد رقم')}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="secondary" onclick="editCustomer('${encodeURIComponent(n)}')">تعديل</button><button class="danger" onclick="removeCustomerFromEditList('${encodeURIComponent(n)}')">حذف من القائمة</button></div></div>`).join(''):'<p class="small">لا توجد بيانات عملاء محفوظة.</p>';
+ let names=Object.keys(customers).sort((a,b)=>a.localeCompare(b,'ar'));
+ savedCustomers.innerHTML=names.length?names.map(n=>`<div class="customer"><div><b>${esc(n)}</b><div class="small">${esc(customers[n].phone||'لا يوجد رقم')}</div></div><button class="secondary" onclick="editCustomer('${encodeURIComponent(n)}')">تعديل</button></div>`).join(''):'<p class="small">لا توجد بيانات عملاء محفوظة.</p>';
 }
-function removeCustomerFromEditList(nameEnc){
- const n=decodeURIComponent(nameEnc||'').trim();
- if(!n||!customers[n])return;
- if(!confirm('حذف اسم العميلة من قائمة التعديل فقط؟\nطلبات العميلة وبياناتها وظهورها في البحث لن تتأثر.'))return;
- customers[n].hiddenFromSavedList=true;
- persist();
-}
-
 function renderAll(){
-refreshCustomerDatalist();renderStoreSelect();renderCatalogStoreSelect();renderProductSelect();renderProducts();renderStores();renderCustomerStoreFilter();renderCustomers();renderSavedCustomers();renderOrders();renderInvoiceHub();let g=groups();statOrders.textContent=orders.length;statCustomers.textContent=Object.keys(g).length;statTotal.textContent='$'+orders.reduce((s,o)=>s+o.price*(Number(o.qty||o.quantity||1)||1),0).toFixed(2)}
+refreshCustomerDatalist();renderStoreSelect();renderCatalogStoreSelect();renderProductSelect();renderProducts();renderStores();renderCustomers();renderSavedCustomers();renderOrders();let g=groups();statOrders.textContent=orders.length;statCustomers.textContent=Object.keys(g).length;statTotal.textContent='$'+orders.reduce((s,o)=>s+o.price*(Number(o.qty||o.quantity||1)||1),0).toFixed(2)}
 renderAll();
 (function(){let c=JSON.parse(localStorage.getItem(CLOUD_CFG)||'{}');if(c.url)sbUrl.value=c.url;if(c.key)sbKey.value=c.key;if(c.url&&c.key)initCloud().catch(()=>{})})();
 </script>
@@ -1079,14 +889,6 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <script>document.addEventListener('DOMContentLoaded',function(){try{setupCustomerNameSuggestions();}catch(e){}});</script>
-<script id="ORDRIA_ENTRY_INVOICE_MODE">
-(function(){
-  window.entryInvoiceMode='new';
-  document.addEventListener('DOMContentLoaded',function(){
-    setTimeout(function(){try{setEntryInvoiceMode('new');refreshContinueInvoiceDates();}catch(e){}},50);
-  });
-})();
-</script>
 <script id="ORDRIA_AUTO_ORDER_DATE">
 (function(){
   const pad=n=>String(n).padStart(2,'0');
