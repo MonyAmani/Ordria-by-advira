@@ -206,7 +206,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 <div class="card"><h2>المنتجات</h2>
 <div class="hint" style="margin-bottom:12px"><b>🏪 اختاري المتجر</b><div class="small">أولًا اختاري اسم المتجر، وبعدها هتظهر منتجات المتجر ده فقط، وبجنب كل منتج عدد القطع المسجلة.</div>
 <label>المتجر</label><select id="productStoreFilter" onchange="setProductStoreFilter(this.value)"><option value="">-- اختاري المتجر --</option></select>
-<div class="actions"><input id="productViewDate" type="date" style="max-width:220px" onchange="setProductViewDate(this.value)"><button type="button" class="secondary" onclick="showAllProductDates()">كل التواريخ</button><button type="button" class="secondary" onclick="showTodayProductDate()">اليوم</button></div>
+<div class="actions"><select id="productViewDate" style="max-width:360px" onchange="setProductViewDate(this.value)"><option value="">-- اختاري تاريخ الفاتورة --</option></select></div>
 <div id="productViewDateLabel" class="small" style="margin-top:7px"></div></div>
 <div id="productList"></div></div></div></section>
 
@@ -456,23 +456,37 @@ function openOrderDatePicker(){
   const monthEl=document.getElementById('orderDateMonth');
   if(monthEl)monthEl.focus();
 }
-let productViewDate=localStorage.getItem('ordria_product_view_date_v1')||todayLocalDate();
-let productViewAllDates=false;
+let productViewDate=localStorage.getItem('ordria_product_view_date_v1')||'';
 let productStoreFilter=localStorage.getItem('ordria_product_store_filter_v1')||'';
+function invoiceDateLabel(d){
+  const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return String(d||'');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
+  return `${Number(m[3])} ${months[Number(m[2])-1]||m[2]} ${m[1]}`;
+}
+function recordedCurrentInvoiceDates(sid){
+  const set=new Set();
+  (orders||[]).forEach(o=>{
+    const os=findStoreForOrder(o);
+    if(!os || String(os.id)!==String(sid)) return;
+    const d=orderEffectiveDate(o);
+    if(!d) return;
+    if(isMonthArchived(sid,monthKey(d))) return;
+    set.add(d);
+  });
+  return Array.from(set).sort((a,b)=>String(b).localeCompare(String(a)));
+}
 function setProductStoreFilter(v){
   productStoreFilter=String(v||'');
   localStorage.setItem('ordria_product_store_filter_v1',productStoreFilter);
   renderProducts();
 }
 function setProductViewDate(v){
-  productViewAllDates=false;
-  productViewDate=v||todayLocalDate();
+  productViewDate=String(v||'');
   localStorage.setItem('ordria_product_view_date_v1',productViewDate);
   renderProducts();
 }
-function showAllProductDates(){productViewAllDates=true;renderProducts()}
-function showTodayProductDate(){setProductViewDate(todayLocalDate())}
-function productDateMatches(o){return productViewAllDates || String(orderEffectiveDate(o)||'')===String(productViewDate)}
+function productDateMatches(o){return String(o.orderDate||'')===String(productViewDate)}
 function renderProducts(){
   ensureProductStores();
   const dateLabel=document.getElementById('productViewDateLabel');
@@ -484,25 +498,32 @@ function renderProducts(){
     if(stores.some(s=>String(s.id)===String(old))) storeFilter.value=old;
     else if(!productStoreFilter && stores.length===1){productStoreFilter=stores[0].id;localStorage.setItem('ordria_product_store_filter_v1',productStoreFilter);storeFilter.value=productStoreFilter;}
   }
-  if(dateInput){dateInput.value=productViewDate;}
-  if(dateLabel)dateLabel.textContent=productViewAllDates?'📊 عرض كل التواريخ — الأرقام مجمعة من كل الطلبات القديمة والجديدة':'📅 التاريخ الحالي للعرض: '+productViewDate+' — الرقم لا يشمل تواريخ أخرى';
   if(!productStoreFilter){
+    if(dateInput) dateInput.innerHTML='<option value="">-- اختاري تاريخ الفاتورة --</option>';
+    if(dateLabel) dateLabel.textContent='👆 اختاري متجرًا أولًا.';
     productList.innerHTML='<div class="small" style="padding:18px;text-align:center">👆 اختاري متجر من القائمة بالأعلى علشان تشوفي منتجاته.</div>';
     return;
   }
   const store=stores.find(s=>String(s.id)===String(productStoreFilter));
   if(!store){productList.innerHTML='<div class="small">اختاري متجرًا صحيحًا.</div>';return;}
+  const dates=recordedCurrentInvoiceDates(store.id);
+  if(!dates.includes(productViewDate)) productViewDate=dates[0]||'';
+  localStorage.setItem('ordria_product_view_date_v1',productViewDate);
+  if(dateInput){
+    dateInput.innerHTML='<option value="">-- اختاري تاريخ الفاتورة --</option>'+dates.map(d=>`<option value="${esc(d)}">${esc(invoiceDateLabel(d))}</option>`).join('');
+    dateInput.value=productViewDate;
+  }
+  if(dateLabel) dateLabel.textContent=productViewDate ? '📅 التاريخ المسجل: '+invoiceDateLabel(productViewDate)+' — الفواتير الحالية فقط' : 'لا توجد فواتير حالية مسجلة لهذا المتجر.';
+  if(!productViewDate){
+    productList.innerHTML=`<div class="store-products-section"><h3>🏪 ${esc(store.name)}</h3><div class="small">لا توجد فواتير حالية مسجلة لهذا المتجر.</div></div>`;
+    return;
+  }
   const ps=products.filter(p=>productStoreIds(p).includes(store.id));
   if(!ps.length){productList.innerHTML=`<div class="store-products-section"><h3>🏪 ${esc(store.name)}</h3><div class="small">لا توجد منتجات مسجلة لهذا المتجر.</div></div>`;return;}
   productList.innerHTML=`<div class="store-products-section"><h3>🏪 ${esc(store.name)}</h3>`+ps.map(p=>{
-    const total=(orders||[]).filter(o=>{
-      if(!productDateMatches(o))return false;
-      const ost=findStoreForOrder(o);
-      const sameStore=ost?String(ost.id)===String(store.id):String(o.storeId||'')===String(store.id);
-      return sameStore && cleanKey(o.product||o.productName||'')===cleanKey(p.name||'');
-    }).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
+    const total=(orders||[]).filter(o=>productDateMatches(o)&&String((findStoreForOrder(o)||{}).id)===String(store.id)&&String(o.product||'').trim()===String(p.name||'').trim()).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
     const countClass=total===0?'product-zero':'';
-    const dateAttr=productViewAllDates?'':` data-product-date="${esc(productViewDate)}"`;
+    const dateAttr=` data-product-date="${esc(productViewDate)}"`;
     return `<div class="productRow"><div class="product-clickable" data-product-name="${String(p.name).replace(/"/g,'&quot;')}" data-product-store="${esc(store.id)}"${dateAttr} title="اضغطي لعرض العميلات"><b>${esc(p.name)}</b><div class="small">$${Number(p.price).toFixed(2)} • المسجل: <strong class="${countClass}">${total}</strong> قطعة</div></div><button class="danger" onclick="deleteProduct('${p.id}')">حذف</button></div>`;
   }).join('')+'</div>';
 }
