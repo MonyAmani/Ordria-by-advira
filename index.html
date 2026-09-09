@@ -126,25 +126,52 @@ create policy "ordria_update_own" on public.ordria_data for update using (auth.u
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">document.addEventListener('DOMContentLoaded',()=>refreshCustomerDatalist());
 
+
 function showProductCustomers(productName){
   const modal=document.getElementById('productCustomerModal');
   const list=document.getElementById('productCustomerList');
   const title=document.getElementById('productCustomerTitle');
   const count=document.getElementById('productCustomerCount');
   if(!modal||!list)return;
+
+  const target=String(productName||'').trim();
   const map=new Map();
+
   (orders||[]).forEach(o=>{
-    if(String(o.product||'').trim()!==String(productName||'').trim())return;
-    const name=String(o.name||'').trim();
+    const op=String(o.product||'').trim();
+    if(op!==target)return;
+    const name=String(o.name||o.customerName||'').trim();
     if(!name)return;
-    map.set(name,(map.get(name)||0)+1);
+    const qty=Number(o.qty||o.quantity||1)||1;
+    map.set(name,(map.get(name)||0)+qty);
   });
+
   const rows=[...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
-  title.textContent='عميلات: '+productName;
-  count.textContent=rows.length?('عدد العميلات: '+rows.length):'لا توجد عميلات مسجلات لهذا المنتج بعد';
-  list.innerHTML=rows.length
-    ? rows.map(([name,qty])=>'<div class="product-customer-row"><span>'+esc(name)+'</span><strong>'+qty+' قطعة</strong></div>').join('')
-    : '<div class="small" style="padding:18px 0">لم يتم تسجيل أي عميلة لهذا المنتج.</div>';
+  title.textContent='عميلات: '+target;
+  count.textContent=rows.length
+    ? 'عدد العميلات: '+rows.length
+    : 'لا توجد طلبات مسجلة لهذا المنتج حتى الآن';
+
+  list.innerHTML='';
+  if(!rows.length){
+    const empty=document.createElement('div');
+    empty.className='small';
+    empty.style.padding='18px 0';
+    empty.textContent='لم يتم تسجيل أي عميلة لهذا المنتج.';
+    list.appendChild(empty);
+  }else{
+    rows.forEach(([name,qty])=>{
+      const row=document.createElement('div');
+      row.className='product-customer-row';
+      const n=document.createElement('span');
+      n.textContent=name;
+      const q=document.createElement('strong');
+      q.textContent=qty+' قطعة';
+      row.appendChild(n);
+      row.appendChild(q);
+      list.appendChild(row);
+    });
+  }
   modal.style.display='flex';
 }
 function closeProductCustomers(){
@@ -152,6 +179,14 @@ function closeProductCustomers(){
   if(modal)modal.style.display='none';
 }
 
+</script>
+<script>
+document.addEventListener('click',function(e){
+  const el=e.target.closest('[data-product-index]');
+  if(!el)return;
+  const i=Number(el.getAttribute('data-product-index'));
+  if(Number.isInteger(i) && products[i]) showProductCustomers(products[i].name);
+});
 </script>
 <script>
 let sb=null, cloudUser=null, cloudBusy=false;
@@ -195,7 +230,18 @@ function renderStoreSelect(){let old=storeSelect.value;storeSelect.innerHTML=sto
 function renderProductSelect(){let old=productSelect.value;productSelect.innerHTML='<option value="">-- اختاري المنتج --</option>'+products.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} — $${Number(p.price).toFixed(2)}</option>`).join('');if(products.some(p=>p.id===old))productSelect.value=old}
 function fillPrice(){let p=products.find(x=>x.id===productSelect.value);if(p){price.value=p.price;newProduct.value=''}}
 function addProduct(){let n=catalogName.value.trim(),p=Number(catalogPrice.value);if(!n||!p)return alert('اكتبي اسم المنتج والسعر.');products.push({id:'p_'+Date.now()+Math.random(),name:n,price:p});catalogName.value='';catalogPrice.value='';persist();alert('تم حفظ المنتج ❤️')}
-function renderProducts(){productList.innerHTML=products.length?products.map(p=>`<div class="productRow"><div class="product-clickable" onclick="showProductCustomers('${String(p.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" title="اضغطي لعرض العميلات"><b>${esc(p.name)}</b><div class="small">$${Number(p.price).toFixed(2)} — اضغطي لعرض العميلات</div></div><button class="danger" onclick="deleteProduct('${p.id}')">حذف</button></div>`).join(''):'<p class="small">لا توجد منتجات محفوظة.</p>'}
+function renderProducts(){
+  productList.innerHTML=products.length
+    ? products.map((p,i)=>`<div class="productRow">
+        <div class="product-clickable" data-product-index="${i}" title="اضغطي لعرض العميلات">
+          <b>${esc(p.name)}</b>
+          <div class="small">$${Number(p.price).toFixed(2)} — اضغطي لعرض العميلات</div>
+        </div>
+        <button class="danger" onclick="deleteProduct('${p.id}')">حذف</button>
+      </div>`).join('')
+    : '<p class="small">لا توجد منتجات محفوظة.</p>';
+}
+
 function deleteProduct(id){if(confirm('حذف المنتج من القائمة؟ الطلبات القديمة لن تتأثر.')){products=products.filter(p=>p.id!==id);persist()}}
 function addStore(){let n=storeName.value.trim();if(!n)return alert('اكتبي اسم المتجر.');stores.push({id:'s_'+Date.now()+Math.random(),name:n,phone:storePhone.value.trim(),info:storeInfo.value.trim()});storeName.value='';storePhone.value='';storeInfo.value='';persist();alert('تم إضافة المتجر ❤️')}
 function renderStores(){storeList.innerHTML=stores.map(s=>`<div class="store"><div><b>${esc(s.name)}</b><div class="small">${esc(s.phone||'')} ${s.info?'• '+esc(s.info):''}</div></div><button class="secondary" onclick="useStore('${s.id}')">استخدام</button></div>`).join('')}
