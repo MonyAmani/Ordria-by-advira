@@ -30,6 +30,9 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 .date-display{width:100%;box-sizing:border-box;min-height:50px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;background:#fffdf9;border:1px solid #d7d0c8;border-radius:10px;direction:ltr;font-weight:800;letter-spacing:.2px;text-align:center;overflow:hidden;}
 .date-part{width:100%;height:50px;border:0!important;background:transparent!important;padding:8px 12px!important;font:inherit;font-weight:800;color:#222;cursor:pointer;outline:none;text-align:center;}
 .date-part:focus{background:#f4efe8!important;box-shadow:inset 0 0 0 2px #c79b62;}
+/* Keep all invoice date text in the requested visual order: day left, month center, year right. */
+#invoiceHubDate,#invoiceDateSelect{direction:ltr;text-align:center;}
+#invoiceHubDate option,#invoiceDateSelect option{direction:ltr;text-align:center;}
 .date-day{text-align:left!important;padding-left:28px!important;}
 .date-year{text-align:right!important;padding-right:28px!important;}
 .date-month{font-size:16px!important;}
@@ -956,39 +959,6 @@ function archiveInvoiceMonth(sid,m){
   else {if(!confirm(`سيتم أرشفة ${monthLabel(m)} لهذا المتجر فقط. الطلبات والفواتير لن تُحذف، وأسماء العميلات ستظل محفوظة. متابعة؟`))return;a[key]={archivedAt:new Date().toISOString()};}
   saveInvoiceArchives(a);renderInvoiceHub();
 }
-
-function deleteInvoiceDate(sid,date){
-  sid=String(sid||'').trim();
-  date=normalizeOrderDate(date)||'';
-  if(!sid||!date)return;
-  const st=stores.find(s=>String(s.id)===sid);
-  const storeName=st?.name||'المتجر';
-  const archived=isMonthArchived(sid,monthKey(date));
-  const count=orders.filter(o=>{
-    const ost=findStoreForOrder(o);
-    return ost&&String(ost.id)===sid&&orderEffectiveDate(o)===date;
-  }).length;
-  if(!count){alert('لا توجد طلبات محفوظة لهذا التاريخ.');return;}
-  const msg=archived
-    ? `⚠️ التاريخ ${invoiceDateLabel(date)} مؤرشف ومدفوع في ${storeName}.\nسيتم حذفه من الأرشيف مع كل فواتير وطلبات هذا التاريخ نهائيًا.\nأسماء العميلات ستظل محفوظة.\n\nهل تريدين المتابعة؟`
-    : `⚠️ سيتم حذف تاريخ ${invoiceDateLabel(date)} من ${storeName} مع كل فواتيره وطلباته نهائيًا.\nأسماء العميلات ستظل محفوظة.\n\nهل تريدين المتابعة؟`;
-  if(!confirm(msg))return;
-  orders=(orders||[]).filter(o=>{
-    const ost=findStoreForOrder(o);
-    return !(ost&&String(ost.id)===sid&&orderEffectiveDate(o)===date);
-  });
-  // If this was the last date in an archived month, remove the empty archive marker too.
-  const mk=monthKey(date), key=`${sid}||${mk}`;
-  const remainingInMonth=orders.some(o=>{
-    const ost=findStoreForOrder(o);
-    return ost&&String(ost.id)===sid&&monthKey(orderEffectiveDate(o))===mk;
-  });
-  const a=invoiceArchives();
-  if(a[key] && !remainingInMonth) delete a[key];
-  localStorage.setItem(INVOICE_ARCHIVE_KEY,JSON.stringify(a));
-  persistQuiet();
-  renderInvoiceHub();
-}
 function invoiceHubOpenCustomer(sidEnc,nameEnc,monthKey){
   try{
     const sid=decodeURIComponent(String(sidEnc||''));
@@ -1035,7 +1005,7 @@ function renderInvoiceHub(){
     <div class="invoice-hub-card"><h3>📂 القسم</h3><select id="invoiceHubMode" onchange="renderInvoiceHub()"><option value="current" ${mode==='current'?'selected':''}>🧾 الفواتير الحالية</option><option value="archive" ${mode==='archive'?'selected':''}>📦 الأرشيف</option></select><div class="small" style="margin-top:7px">الأرشيف خاص بهذا المتجر فقط ولا يحذف أي بيانات.</div></div>
     <div class="invoice-hub-card"><h3>📅 تاريخ الفاتورة</h3><select id="invoiceHubDate" onchange="renderInvoiceHub()"><option value="">-- اختاري تاريخ الفاتورة --</option>${listDates.map(d=>`<option value="${esc(d)}" ${d===selectedDate?'selected':''}>${esc(invoiceDateLabel(d))}</option>`).join('')}</select>${selectedDate?`<div style="margin-top:9px"><span class="invoice-month-pill ${isMonthArchived(sid,selectedMonth)?'archived':''}">${isMonthArchived(sid,selectedMonth)?'📦 مؤرشف':'🟢 حالي'}</span></div>`:''}</div>
   </div>
-  ${selectedDate?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(invoiceDateLabel(selectedDate))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(selectedMonth)}')">${isMonthArchived(sid,selectedMonth)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button><button class="danger" onclick="deleteInvoiceDate('${esc(sid)}','${esc(selectedDate)}')">🗑️ ${isMonthArchived(sid,selectedMonth)?'حذف التاريخ من الأرشيف':'حذف التاريخ وفواتيره'}</button></div></div>
+  ${selectedDate?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(invoiceDateLabel(selectedDate))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(selectedMonth)}')">${isMonthArchived(sid,selectedMonth)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div>
   <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" data-sid="${esc(String(sid))}" data-name="${esc(c.name)}" data-date="${esc(selectedDate)}" onclick="openInvoiceFromHubButton(this)">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير في هذا التاريخ.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وتاريخ الفاتورة لعرض الفواتير.</div>'}`;
 }
 function getInvoiceContext(sid,name,dateEnc){
