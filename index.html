@@ -125,7 +125,7 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 .customer-suggestions{display:none;position:absolute;z-index:20;right:0;left:0;top:100%;margin-top:-1px;background:#fff;border:1px solid #c9a66b;border-radius:0 0 12px 12px;box-shadow:0 8px 20px rgba(0,0,0,.10);max-height:210px;overflow:auto}
 .customer-suggestions.open{display:block}
 .customer-suggestion{display:block;width:100%;border:0;background:#fff;text-align:right;padding:11px 13px;font-size:15px;color:#5b3822;cursor:pointer;border-bottom:1px solid #eee}
-.clothes-mode{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fffaf3}.clothes-mode-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.variant-row{display:grid;grid-template-columns:1.8fr 1fr 1fr auto;gap:7px;align-items:start;margin-top:8px}.variant-row input,.variant-row select{padding:9px}.variant-remove{background:#f3e5e5!important;color:#8b2e2e!important;padding:8px 10px!important}.clothes-hidden{display:none!important}@media(max-width:700px){.variant-row{grid-template-columns:1fr 1fr}.variant-row .variant-customer{grid-column:1/-1}.variant-remove{grid-column:2}}
+.clothes-mode{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fffaf3}.clothes-mode-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.variant-row{display:grid;grid-template-columns:1fr 2fr auto;gap:7px;align-items:start;margin-top:8px}.variant-row input,.variant-row select{padding:9px}.variant-remove{background:#f3e5e5!important;color:#8b2e2e!important;padding:8px 10px!important}.color-block{border:1px solid #eadfce;border-radius:12px;padding:12px;margin-top:10px;background:#fffdf9}.color-block-head{display:flex;align-items:center;gap:8px}.color-block-head select{flex:1}.size-rows{margin-top:4px}.size-row-label{font-size:11px;color:#76543c;margin-top:8px}.clothes-hidden{display:none!important}@media(max-width:700px){.variant-row{grid-template-columns:1fr auto}.variant-row .variant-customer{grid-column:1/-1}.variant-remove{grid-column:2}.color-block-head{flex-wrap:wrap}.color-block-head select{width:100%}}
 
 .customer-suggestion:last-child{border-bottom:0}
 .customer-suggestion:hover{background:#fff8ed}
@@ -176,9 +176,9 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
   <div class="small">اكتبي كل عميلة في سطر. لو العميلة واخدة أكتر من قطعة اكتبي بعد اسمها + والعدد، مثل: مني +4 = ٤ قطع.</div>
 </div>
 <div id="clothesOrderBox" class="clothes-mode clothes-hidden">
-  <div class="clothes-mode-head"><b>👗 تفاصيل كل دفعة</b><span class="small">اختاري اللون والمقاس واكتبي أكتر من عميلة في نفس السطر</span></div>
+  <div class="clothes-mode-head"><b>👗 تفاصيل الموديل كله</b><span class="small">اختاري اللون مرة واحدة، وبعدها كل المقاسات الخاصة باللون في نفس الصفحة.</span></div>
   <div id="variantRows"></div>
-  <button type="button" class="secondary" style="margin-top:10px" onclick="addVariantRow()">➕ إضافة لون / مقاس</button>
+  <div class="actions" style="margin-top:10px"><button type="button" class="secondary" onclick="addColorBlock()">➕ إضافة لون جديد</button></div>
 </div>
 <div class="field"><label>🧾 نوع الفاتورة لهذا الإدخال</label><div class="actions" style="margin-top:6px"><button type="button" id="newInvoiceModeBtn" class="gold" onclick="setEntryInvoiceMode('new')">🆕 فاتورة جديدة</button><button type="button" id="continueInvoiceModeBtn" class="secondary" onclick="setEntryInvoiceMode('continue')">↩️ استكمال فاتورة قديمة</button></div><div id="entryInvoiceModeText" class="small" style="margin-top:8px">سيتم إنشاء الإدخال على تاريخ جديد (تاريخ اليوم).</div></div>
 <div class="field"><label>📅 تاريخ الطلب / الفاتورة</label>
@@ -631,7 +631,7 @@ function setOrderEntryType(type){
   if(clothes)clothes.classList.toggle('clothes-hidden',orderEntryType!=='clothes');
   if(sb){sb.classList.toggle('gold',orderEntryType==='simple');sb.classList.toggle('secondary',orderEntryType!=='simple');}
   if(cb){cb.classList.toggle('gold',orderEntryType==='clothes');cb.classList.toggle('secondary',orderEntryType!=='clothes');}
-  if(orderEntryType==='clothes' && !document.querySelector('#variantRows .variant-row')) addVariantRow();
+  if(orderEntryType==='clothes' && !document.querySelector('#variantRows .color-block')) addColorBlock();
 }
 function variantSelectOptions(arr,placeholder){return `<option value="">${placeholder}</option>`+arr.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');}
 function setupVariantCustomerSuggestions(row){
@@ -670,28 +670,38 @@ function setupVariantCustomerSuggestions(row){
   input.addEventListener('keyup',render);
   input.addEventListener('blur',()=>setTimeout(close,120));
 }
-function addVariantRow(data={}){
-  const box=document.getElementById('variantRows'); if(!box)return;
+function addSizeRow(block,data={}){
+  const box=block?.querySelector('.size-rows'); if(!box)return;
   const row=document.createElement('div'); row.className='variant-row';
-  row.innerHTML=`<div class="variant-customer-wrap"><textarea class="variant-customer" autocomplete="off" placeholder="أسماء العميلات — كل اسم في سطر\nمثال: منى\nسارة +2"></textarea><div class="variant-customer-suggestions"></div></div>
-    <select class="variant-color">${variantSelectOptions(CLOTHING_COLORS,'اللون')}${data.color?`<option value="${esc(data.color)}" selected>${esc(data.color)}</option>`:''}</select>
-    <select class="variant-size">${variantSelectOptions(CLOTHING_SIZES,'المقاس')}${data.size?`<option value="${esc(data.size)}" selected>${esc(data.size)}</option>`:''}</select>
+  row.innerHTML=`<select class="variant-size">${variantSelectOptions(CLOTHING_SIZES,'المقاس')}${data.size?`<option value="${esc(data.size)}" selected>${esc(data.size)}</option>`:''}</select>
+    <div class="variant-customer-wrap"><div class="size-row-label">أسماء العميلات لهذا المقاس</div><textarea class="variant-customer" autocomplete="off" placeholder="اكتبي اسمًا في كل سطر\nمثال: منى\nسارة +2"></textarea><div class="variant-customer-suggestions"></div></div>
     <button type="button" class="variant-remove" onclick="this.closest('.variant-row').remove()">✕</button>`;
   const ta=row.querySelector('.variant-customer');
   ta.value=Array.isArray(data.names)?data.names.join('\n'):(data.name||'');
   box.appendChild(row);
   setupVariantCustomerSuggestions(row);
 }
+function addColorBlock(data={}){
+  const box=document.getElementById('variantRows'); if(!box)return;
+  const block=document.createElement('div'); block.className='color-block';
+  block.innerHTML=`<div class="color-block-head"><b>🎨 اللون</b><select class="variant-color">${variantSelectOptions(CLOTHING_COLORS,'اختاري اللون')}${data.color?`<option value="${esc(data.color)}" selected>${esc(data.color)}</option>`:''}</select><button type="button" class="variant-remove" onclick="this.closest('.color-block').remove()">✕ حذف اللون</button></div><div class="size-rows"></div><button type="button" class="secondary" style="margin-top:9px" onclick="addSizeRow(this.closest('.color-block'))">➕ إضافة مقاس لنفس اللون</button>`;
+  box.appendChild(block);
+  const rows=Array.isArray(data.sizes)&&data.sizes.length?data.sizes:[{}];
+  rows.forEach(x=>addSizeRow(block,x));
+}
 function getClothingParsed(){
   const out=[];
-  document.querySelectorAll('#variantRows .variant-row').forEach(r=>{
-    const names=r.querySelector('.variant-customer')?.value||'';
-    const color=r.querySelector('.variant-color')?.value.trim()||'';
-    const size=r.querySelector('.variant-size')?.value.trim()||'';
-    if(!color||!size)return;
-    names.split(/\n+/).map(x=>x.trim()).filter(Boolean).forEach(line=>{
-      const parsed=parseCustomerLine(line);
-      if(parsed?.name)out.push({name:parsed.name,color,size,qty:parsed.qty});
+  document.querySelectorAll('#variantRows .color-block').forEach(block=>{
+    const color=block.querySelector('.variant-color')?.value.trim()||'';
+    if(!color)return;
+    block.querySelectorAll('.variant-row').forEach(r=>{
+      const size=r.querySelector('.variant-size')?.value.trim()||'';
+      const names=r.querySelector('.variant-customer')?.value||'';
+      if(!size)return;
+      names.split(/\n+/).map(x=>x.trim()).filter(Boolean).forEach(line=>{
+        const parsed=parseCustomerLine(line);
+        if(parsed?.name)out.push({name:parsed.name,color,size,qty:parsed.qty});
+      });
     });
   });
   return out;
@@ -719,7 +729,7 @@ function addBatch(){
   alert((mode==='continue'?'تم الاستكمال على فاتورة تاريخ ':'تم إنشاء فاتورة جديدة بتاريخ ')+orderDate+' — تم حفظ '+pieces+' قطعة لـ '+parsed.length+' عميلة ❤️');
 }
 
-function clearForm(keep=true){let sid=storeSelect.value;productSelect.value='';newProduct.value='';price.value='';names.value='';const vr=document.getElementById('variantRows');if(vr)vr.innerHTML='';if(orderEntryType==='clothes')addVariantRow();if(keep)storeSelect.value=sid}
+function clearForm(keep=true){let sid=storeSelect.value;productSelect.value='';newProduct.value='';price.value='';names.value='';const vr=document.getElementById('variantRows');if(vr)vr.innerHTML='';if(orderEntryType==='clothes')addColorBlock();if(keep)storeSelect.value=sid}
 function groups(){let m={};orders.forEach(o=>{let k=o.storeId+'||'+o.name.trim();(m[k]??=[]).push(o)});return m}
 let customerStoreFilter=localStorage.getItem('ordria_customer_store_filter_v1')||'';
 function setCustomerStoreFilter(v){customerStoreFilter=String(v||'');localStorage.setItem('ordria_customer_store_filter_v1',customerStoreFilter);renderCustomers();}
