@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
+<!-- ORDRY_ARCHIVE_LOCK_V2 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#151515">
@@ -638,7 +639,19 @@ function adjustOrderCustomerQty(storeId,productName,customerName,delta){
        String(o.name||o.customerName||o.customer||'').trim()===String(customerName||'').trim()) matches.push(i);
   });
   if(!matches.length)return;
-  const i=matches[matches.length-1], o=list[i];
+
+  // Archived invoices are read-only: never add/remove pieces from them.
+  // If the customer has both archived and current entries, +/− always targets
+  // the newest non-archived entry. If there is no current entry, block the action.
+  const editableMatches=matches.filter(i=>{
+    const d=orderEffectiveDate(list[i]);
+    return !d || !isMonthArchived(storeId,monthKey(d));
+  });
+  if(!editableMatches.length){
+    alert('الفاتورة مؤرشفة ومدفوعة 🔒\nلا يمكن إضافة أو حذف قطع منها. لعمل طلب جديد اختاري تاريخًا جديدًا.');
+    return;
+  }
+  const i=editableMatches[editableMatches.length-1], o=list[i];
   const q=Number(o.qty||o.quantity||1)||1;
   let newTotal=0;
   if(delta>0){
@@ -728,9 +741,19 @@ function editOrderCustomerName(storeId,productName,customerName){
 
 function removeOrderCustomer(storeId,productName,customerName){
   const list=orders||[];
+  let removed=false;
   for(let i=list.length-1;i>=0;i--){
     const o=list[i];
-    if(String(o.storeId||'')===String(storeId||'') && String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim() && String(o.name||o.customerName||o.customer||'').trim()===String(customerName||'').trim()) list.splice(i,1);
+    const same=String(o.storeId||'')===String(storeId||'') && String(o.product||o.productName||o.item||'').trim()===String(productName||'').trim() && String(o.name||o.customerName||o.customer||'').trim()===String(customerName||'').trim();
+    if(!same)continue;
+    const d=orderEffectiveDate(o);
+    if(d && isMonthArchived(storeId,monthKey(d))) continue;
+    list.splice(i,1);
+    removed=true;
+  }
+  if(!removed){
+    alert('الفاتورة مؤرشفة ومدفوعة 🔒\nلا يمكن حذف بياناتها.');
+    return;
   }
   ordersViewState.storeId=String(storeId||'');
   ordersViewState.product=String(productName||'');
@@ -751,6 +774,7 @@ function renderOrders(){
 
   box.innerHTML=`
     <div class="orders-selector-v2">
+      <div class="small" style="margin-bottom:10px">🔒 الفواتير المؤرشفة والمدفوعة لا يمكن إضافة أو حذف قطع منها. الإضافة تتم على أحدث فاتورة غير مؤرشفة فقط.</div>
       <div class="orders-select-card">
         <div class="orders-select-head"><span>🏪 المتجر</span><span id="ordersStoreValue">اختاري المتجر</span></div>
         <button type="button" class="orders-select-button" id="ordersStoreButton">اضغطي لاختيار المتجر ▾</button>
