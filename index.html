@@ -472,7 +472,7 @@ function setProductViewDate(v){
 }
 function showAllProductDates(){productViewAllDates=true;renderProducts()}
 function showTodayProductDate(){setProductViewDate(todayLocalDate())}
-function productDateMatches(o){return productViewAllDates || String(o.orderDate||'')===String(productViewDate)}
+function productDateMatches(o){return productViewAllDates || String(orderEffectiveDate(o)||'')===String(productViewDate)}
 function renderProducts(){
   ensureProductStores();
   const dateLabel=document.getElementById('productViewDateLabel');
@@ -495,7 +495,12 @@ function renderProducts(){
   const ps=products.filter(p=>productStoreIds(p).includes(store.id));
   if(!ps.length){productList.innerHTML=`<div class="store-products-section"><h3>🏪 ${esc(store.name)}</h3><div class="small">لا توجد منتجات مسجلة لهذا المتجر.</div></div>`;return;}
   productList.innerHTML=`<div class="store-products-section"><h3>🏪 ${esc(store.name)}</h3>`+ps.map(p=>{
-    const total=(orders||[]).filter(o=>productDateMatches(o)&&String(o.storeId)===String(store.id)&&String(o.product||'').trim()===String(p.name||'').trim()).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
+    const total=(orders||[]).filter(o=>{
+      if(!productDateMatches(o))return false;
+      const ost=findStoreForOrder(o);
+      const sameStore=ost?String(ost.id)===String(store.id):String(o.storeId||'')===String(store.id);
+      return sameStore && cleanKey(o.product||o.productName||'')===cleanKey(p.name||'');
+    }).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
     const countClass=total===0?'product-zero':'';
     const dateAttr=productViewAllDates?'':` data-product-date="${esc(productViewDate)}"`;
     return `<div class="productRow"><div class="product-clickable" data-product-name="${String(p.name).replace(/"/g,'&quot;')}" data-product-store="${esc(store.id)}"${dateAttr} title="اضغطي لعرض العميلات"><b>${esc(p.name)}</b><div class="small">$${Number(p.price).toFixed(2)} • المسجل: <strong class="${countClass}">${total}</strong> قطعة</div></div><button class="danger" onclick="deleteProduct('${p.id}')">حذف</button></div>`;
