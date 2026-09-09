@@ -372,8 +372,8 @@ if ('serviceWorker' in navigator) {
     const el=e.target.closest('[data-product-index]');
     if(!el)return;
     const i=Number(el.getAttribute('data-product-index'));
-    if(window.products && window.products[i]){
-      window.showProductCustomers(window.products[i].name);
+    if(typeof products!=='undefined' && products[i]){
+      window.showProductCustomers(products[i].name);
     }
   });
 })();
