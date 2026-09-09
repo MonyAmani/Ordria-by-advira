@@ -311,9 +311,9 @@ function renderOrders(){
   const box=document.getElementById('orderList');
   if(!box)return;
 
-  const rows=(typeof orders!=='undefined'?orders:[]);
-  const storeData=(typeof stores!=='undefined'?stores:[]);
-  const stores=[...storeData].map(s=>({id:String(s.id),name:String(s.name||'').trim()})).filter(s=>s.name)
+  const rows=orders||[];
+  const storeData=stores||[];
+  const storeChoices=[...storeData].map(s=>({id:String(s.id),name:String(s.name||'').trim()})).filter(s=>s.name)
     .sort((a,b)=>a.name.localeCompare(b.name,'ar'));
 
   box.innerHTML=`
@@ -355,13 +355,13 @@ function renderOrders(){
 
   function closeAll(){[storeOptions,productOptions,customerOptions].forEach(x=>x.classList.remove('open'));}
 
-  storeOptions.innerHTML=stores.length?stores.map(s=>`<button type="button" class="orders-option" data-store-id="${esc(s.id)}">🏪 ${esc(s.name)}</button>`).join(''):'<div class="orders-no-result">لا توجد متاجر مسجلة.</div>';
+  storeOptions.innerHTML=storeChoices.length?storeChoices.map(s=>`<button type="button" class="orders-option" data-store-id="${esc(s.id)}">🏪 ${esc(s.name)}</button>`).join(''):'<div class="orders-no-result">لا توجد متاجر مسجلة.</div>';
   storeButton.onclick=()=>{productOptions.classList.remove('open');customerOptions.classList.remove('open');storeOptions.classList.toggle('open')};
 
   storeOptions.querySelectorAll('[data-store-id]').forEach(btn=>{
     btn.onclick=()=>{
       const sid=btn.getAttribute('data-store-id');
-      const selectedStoreObj=stores.find(s=>s.id===sid);
+      const selectedStoreObj=storeChoices.find(s=>s.id===sid);
       selectedStore=selectedStoreObj?selectedStoreObj.name:'';
       const selectedStoreId=sid;
       selectedProduct='';
