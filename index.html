@@ -847,7 +847,27 @@ function archiveInvoiceMonth(sid,m){
   else {if(!confirm(`سيتم أرشفة ${monthLabel(m)} لهذا المتجر فقط. الطلبات والفواتير لن تُحذف، وأسماء العميلات ستظل محفوظة. متابعة؟`))return;a[key]={archivedAt:new Date().toISOString()};}
   saveInvoiceArchives(a);renderInvoiceHub();
 }
-function invoiceHubOpenCustomer(sid,name,date){invoice(sid,name,date);}
+function invoiceHubOpenCustomer(sidEnc,nameEnc,monthKey){
+  try{
+    const sid=decodeURIComponent(String(sidEnc||''));
+    const name=decodeURIComponent(String(nameEnc||''));
+    const month=decodeURIComponent(String(monthKey||''));
+    const matching=orders.filter(o=>{
+      const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(name);
+      if(!sameName)return false;
+      const st=findStoreForOrder(o);
+      const sameStore=String(o.storeId||'')===String(sid)||(st&&String(st.id)===String(sid));
+      if(!sameStore)return false;
+      const d=orderEffectiveDate(o);
+      return !month || String(d||'').slice(0,7)===String(month).slice(0,7);
+    });
+    const dates=[...new Set(matching.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
+    invoice(encodeURIComponent(sid),encodeURIComponent(name),dates[0] ? encodeURIComponent(dates[0]) : '');
+  }catch(e){
+    console.error(e);
+    alert('تعذر فتح الفاتورة. جربي مرة أخرى.');
+  }
+}
 function renderInvoiceHub(){
   const hub=document.getElementById('invoiceHub'); if(!hub)return;
   const oldStore=document.getElementById('invoiceHubStore')?.value||'';
