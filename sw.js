@@ -1,4 +1,4 @@
-const CACHE = "ordria-shell-v4";
+const CACHE = "ordry-shell-v5";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icons/icon-180.png", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", event => {
