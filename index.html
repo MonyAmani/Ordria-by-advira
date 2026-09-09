@@ -149,7 +149,11 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 
 <section id="products" class="view"><div class="grid">
 <div class="card"><h2>🏷️ إضافة منتج</h2><label>المتجر</label><select id="catalogStore"></select><label>اسم المنتج</label><input id="catalogName" placeholder="شنطة جلد"><label>السعر</label><input id="catalogPrice" type="number" step="0.01" placeholder="25"><div class="actions"><button class="gold" onclick="addProduct()">حفظ المنتج</button></div></div>
-<div class="card"><h2>المنتجات</h2><div id="productList"></div></div></div></section>
+<div class="card"><h2>المنتجات</h2>
+<div class="hint" style="margin-bottom:12px"><b>📅 عرض المنتجات حسب التاريخ</b><div class="small">العدد هنا خاص بالتاريخ المختار فقط، عشان كل يوم/شهر يبقى منفصل عن اللي قبله. ولعرض القديم اختاري تاريخه، أو اضغطي «كل التواريخ».</div>
+<div class="actions"><input id="productViewDate" type="date" style="max-width:220px" onchange="setProductViewDate(this.value)"><button type="button" class="secondary" onclick="showAllProductDates()">كل التواريخ</button><button type="button" class="secondary" onclick="showTodayProductDate()">اليوم</button></div>
+<div id="productViewDateLabel" class="small" style="margin-top:7px"></div></div>
+<div id="productList"></div></div></div></section>
 
 <section id="stores" class="view"><div class="grid">
 <div class="card"><h2>🏪 إضافة متجر</h2><label>اسم المتجر</label><input id="storeName" placeholder="ASMR Fashion"><label>رقم التواصل</label><input id="storePhone" placeholder="+1 ..."><label>معلومة على الفاتورة</label><input id="storeInfo" placeholder="Shipping all USA"><div class="actions"><button class="gold" onclick="addStore()">حفظ المتجر</button></div></div>
@@ -259,7 +263,7 @@ function closeProductCustomers(){
 document.addEventListener('click',function(e){
     const el=e.target.closest('[data-product-name]');
     if(!el)return;
-    window.showProductCustomers(el.getAttribute('data-product-name')||'');
+    window.showProductCustomers(el.getAttribute('data-product-name')||'', el.getAttribute('data-product-store')||'', el.getAttribute('data-product-date')||'');
   });
 </script>
 <script>
@@ -327,15 +331,35 @@ function ensureProductStores(){
   });
   if(changed){localStorage.setItem(PK,JSON.stringify(products));cloudSave().catch(()=>{});}
 }
+function todayLocalDate(){
+  const d=new Date(),pad=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+let productViewDate=localStorage.getItem('ordria_product_view_date_v1')||todayLocalDate();
+let productViewAllDates=false;
+function setProductViewDate(v){
+  productViewAllDates=false;
+  productViewDate=v||todayLocalDate();
+  localStorage.setItem('ordria_product_view_date_v1',productViewDate);
+  renderProducts();
+}
+function showAllProductDates(){productViewAllDates=true;renderProducts()}
+function showTodayProductDate(){setProductViewDate(todayLocalDate())}
+function productDateMatches(o){return productViewAllDates || String(o.orderDate||'')===String(productViewDate)}
 function renderProducts(){
   ensureProductStores();
+  const dateLabel=document.getElementById('productViewDateLabel');
+  const dateInput=document.getElementById('productViewDate');
+  if(dateInput){dateInput.value=productViewDate;}
+  if(dateLabel)dateLabel.textContent=productViewAllDates?'📊 عرض كل التواريخ — الأرقام مجمعة من كل الطلبات القديمة والجديدة':'📅 التاريخ الحالي للعرض: '+productViewDate+' — الرقم لا يشمل تواريخ أخرى';
   const sections=stores.map(store=>{
     const ps=products.filter(p=>productStoreIds(p).includes(store.id));
     if(!ps.length) return `<div class="store-products-section"><h3>🏪 ${esc(store.name)}</h3><div class="small">لا توجد منتجات مسجلة لهذا المتجر.</div></div>`;
     return `<div class="store-products-section"><h3>🏪 ${esc(store.name)}</h3>`+ps.map(p=>{
-      const total=(orders||[]).filter(o=>String(o.storeId)===String(store.id)&&String(o.product||'').trim()===String(p.name||'').trim()).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
+      const total=(orders||[]).filter(o=>productDateMatches(o)&&String(o.storeId)===String(store.id)&&String(o.product||'').trim()===String(p.name||'').trim()).reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
       const countClass=total===0?'product-zero':'';
-      return `<div class="productRow"><div class="product-clickable" data-product-name="${String(p.name).replace(/"/g,'&quot;')}" data-product-store="${esc(store.id)}" title="اضغطي لعرض العميلات"><b>${esc(p.name)}</b><div class="small">$${Number(p.price).toFixed(2)} • المسجل: <strong class="${countClass}">${total}</strong> قطعة</div></div><button class="danger" onclick="deleteProduct('${p.id}')">حذف</button></div>`;
+      const dateAttr=productViewAllDates?'':` data-product-date="${esc(productViewDate)}"`;
+      return `<div class="productRow"><div class="product-clickable" data-product-name="${String(p.name).replace(/"/g,'&quot;')}" data-product-store="${esc(store.id)}"${dateAttr} title="اضغطي لعرض العميلات"><b>${esc(p.name)}</b><div class="small">$${Number(p.price).toFixed(2)} • المسجل: <strong class="${countClass}">${total}</strong> قطعة</div></div><button class="danger" onclick="deleteProduct('${p.id}')">حذف</button></div>`;
     }).join('')+`</div>`;
   }).join('');
   productList.innerHTML=sections || '<p class="small">لا توجد متاجر أو منتجات محفوظة.</p>';
@@ -741,7 +765,7 @@ if ('serviceWorker' in navigator) {
 <script>
 /* ORDRIA_PRODUCT_CUSTOMERS_FIX */
 (function(){
-  window.showProductCustomers = function(productName){
+  window.showProductCustomers = function(productName,storeId,viewDate){
     const modal=document.getElementById('productCustomerModal');
     const list=document.getElementById('productCustomerList');
     const title=document.getElementById('productCustomerTitle');
@@ -749,6 +773,8 @@ if ('serviceWorker' in navigator) {
     if(!modal||!list)return;
 
     const target=String(productName||'').trim();
+    const sid=String(storeId||'');
+    const vd=String(viewDate||'');
     const map=new Map();
     const add=function(name,qty){
       name=String(name||'').trim();
@@ -762,7 +788,7 @@ if ('serviceWorker' in navigator) {
       const op=o.product||o.productName||o.item||'';
       const matches=same(op) || same(o.product_id) || same(o.productId);
 
-      if(matches){
+      if(matches && (!sid || String(o.storeId||'')===sid) && (!vd || String(o.orderDate||'')===vd)){
         if(o.name||o.customerName||o.customer){
           add(o.name||o.customerName||o.customer, o.qty||o.quantity||1);
         }
@@ -823,7 +849,7 @@ if ('serviceWorker' in navigator) {
     if(!el)return;
     const i=Number(el.getAttribute('data-product-index'));
     if(typeof products!=='undefined' && products[i]){
-      window.showProductCustomers(products[i].name, el.getAttribute('data-product-store')||'');
+      window.showProductCustomers(products[i].name, el.getAttribute('data-product-store')||'', el.getAttribute('data-product-date')||'');
     }
   });
 })();
