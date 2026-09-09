@@ -575,7 +575,7 @@ function deleteStore(id){
   persist();
   alert('تم حذف المتجر وبياناته المرتبطة.');
 }
-function renderStores(){storeList.innerHTML=stores.map(s=>`<div class="store"><div style="flex:1"><b>${esc(s.name)}</b><div class="small">${s.phone?`📞 ${esc(s.phone)}`:''} ${s.info?`${s.phone?' • ':''}📝 ${esc(s.info)}`:''}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="secondary" onclick="useStore('${String(s.id).replace(/'/g,\"\\'\")}')">استخدام</button><button class="secondary" onclick="editStore('${String(s.id).replace(/'/g,\"\\'\")}')">✏️ تعديل</button><button class="danger" onclick="deleteStore('${String(s.id).replace(/'/g,\"\\'\")}')">🗑️ حذف</button></div></div>`).join('')}
+function renderStores(){storeList.innerHTML=stores.map(s=>`<div class="store"><div style="flex:1"><b>${esc(s.name)}</b><div class="small">${s.phone?`📞 ${esc(s.phone)}`:''} ${s.info?`${s.phone?' • ':''}📝 ${esc(s.info)}`:''}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="secondary" onclick="useStore(decodeURIComponent('${encodeURIComponent(String(s.id))}'))">استخدام</button><button class="secondary" onclick="editStore(decodeURIComponent('${encodeURIComponent(String(s.id))}'))">✏️ تعديل</button><button class="danger" onclick="deleteStore(decodeURIComponent('${encodeURIComponent(String(s.id))}'))">🗑️ حذف</button></div></div>`).join('')}
 function useStore(id){storeSelect.value=id;show('add',document.querySelector('.nav button'));window.scrollTo({top:0,behavior:'smooth'})}
 
 function refreshCustomerDatalist(){
