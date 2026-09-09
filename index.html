@@ -731,45 +731,93 @@ function openEdit(id){let o=orders.find(x=>x.id===id);if(!o)return;editingId=id;
 function closeEdit(){editingId=null;editModal.classList.remove('open')}
 function saveEdit(){let o=orders.find(x=>x.id===editingId),n=editName.value.trim(),p=editProduct.value.trim(),v=Number(editPrice.value);if(!o||!n||!p||!v)return alert('راجعي البيانات.');o.name=n;o.product=p;o.price=v;persist();closeEdit()}
 function del(id){if(confirm('حذف الطلب؟')){orders=orders.filter(o=>o.id!==id);persist()}}
+function normalizeOrderDate(v){
+  const x=String(v||'').trim();
+  if(!x)return '';
+  // YYYY-MM-DD or ISO datetime
+  let m=x.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+  // DD/MM/YYYY or DD-MM-YYYY
+  m=x.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+  if(m)return `${m[3]}-${m[2]}-${m[1]}`;
+  return x;
+}
+function orderEffectiveDate(o){
+  const d=normalizeOrderDate(o&&o.orderDate);
+  if(d)return d;
+  return normalizeOrderDate(o&&o.createdAt);
+}
+function cleanKey(v){
+  return String(v||'').replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim().toLocaleLowerCase('ar');
+}
+function findStoreForOrder(o){
+  const sid=String(o&&o.storeId||'');
+  let st=stores.find(x=>String(x.id)===sid);
+  if(st)return st;
+  const sn=cleanKey(o&& (o.storeName||o.store||''));
+  if(sn) st=stores.find(x=>cleanKey(x.name)===sn);
+  return st||null;
+}
 function invoice(sidEnc,nEnc,dateEnc){
-  let sid=decodeURIComponent(sidEnc),n=decodeURIComponent(nEnc);
-  const allCustomerOrders=orders.filter(o=>String(o.storeId)===String(sid)&&String(o.name||'').trim()===String(n).trim());
-  const availableDates=[...new Set(allCustomerOrders.map(o=>String(o.orderDate||'')).filter(Boolean))].sort().reverse();
-  let selectedDate=dateEnc?decodeURIComponent(dateEnc):((availableDates[0])||todayLocalDate());
+  const sid=decodeURIComponent(sidEnc), n=decodeURIComponent(nEnc);
+  const allCustomerOrders=orders.filter(o=>{
+    const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(n);
+    if(!sameName)return false;
+    const st=findStoreForOrder(o);
+    return String(o.storeId||'')===String(sid)|| (st&&String(st.id)===String(sid));
+  });
+  const availableDates=[...new Set(allCustomerOrders.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
+  const requested=dateEnc?normalizeOrderDate(decodeURIComponent(dateEnc)):'';
+  // From the customer page, automatically use the most recent date that actually has orders.
+  // A manually selected date remains isolated.
+  const selectedDate=requested||availableDates[0]||todayLocalDate();
   renderInvoice(sid,n,selectedDate,availableDates);
 }
 function renderInvoice(sid,n,selectedDate,availableDates){
-  const a=orders.filter(o=>String(o.storeId)===String(sid)&&String(o.name||'').trim()===String(n).trim()&&String(o.orderDate||'')===String(selectedDate));
-  const allCustomerOrders=orders.filter(o=>String(o.storeId)===String(sid)&&String(o.name||'').trim()===String(n).trim());
-  const dates=[...new Set(allCustomerOrders.map(o=>String(o.orderDate||'')).filter(Boolean))].sort().reverse();
-  const s=stores.find(x=>x.id===sid)||{name:'متجر',phone:'',info:''};
+  selectedDate=normalizeOrderDate(selectedDate)||todayLocalDate();
+  const customerOrders=orders.filter(o=>{
+    const sameName=cleanKey(o.name||o.customerName||o.customer)===cleanKey(n);
+    if(!sameName)return false;
+    const st=findStoreForOrder(o);
+    return String(o.storeId||'')===String(sid)|| (st&&String(st.id)===String(sid));
+  });
+  const dates=[...new Set(customerOrders.map(orderEffectiveDate).filter(Boolean))].sort().reverse();
+  const allMode=selectedDate==='__ALL__';
+  const a=allMode?customerOrders:customerOrders.filter(o=>orderEffectiveDate(o)===selectedDate);
+  const s=stores.find(x=>String(x.id)===String(sid))||findStoreForOrder(customerOrders[0])||{name:'متجر',phone:'',info:''};
 
-  // Merge repeated product lines into one line while keeping the real total from all records.
+  // Merge repeated products even when names contain extra spaces/zero-width characters.
   const merged={};
   a.forEach(o=>{
-    const product=String(o.product||'').trim();
+    const product=String(o.product||o.productName||o.item||'').replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim();
     if(!product)return;
-    const key=product.toLocaleLowerCase('ar');
-    const q=Number(o.qty||o.quantity||1)||1;
+    const key=cleanKey(product);
+    const q=Math.max(1,Number(o.qty||o.quantity||1)||1);
     const price=Number(o.price)||0;
-    if(!merged[key]) merged[key]={product,qty:0,total:0,prices:[]};
+    if(!merged[key]) merged[key]={product,qty:0,total:0,price:price,prices:[]};
     merged[key].qty+=q;
     merged[key].total+=price*q;
     merged[key].prices.push(price);
   });
   const lines=Object.values(merged);
   const subtotal=lines.reduce((x,y)=>x+y.total,0);
-  const num='ORD-'+String(selectedDate||todayLocalDate()).replace(/-/g,'')+'-'+Math.floor(Math.random()*900+100);
+  const safeNumSeed=(String(allMode?todayLocalDate():selectedDate).replace(/\D/g,'').slice(-8)||'00000000');
+  const num='ORD-'+safeNumSeed+'-'+String(Math.abs((cleanKey(n).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900)+100));
 
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));invoiceView.classList.add('active');
   const dateOptions=dates.map(d=>`<option value="${esc(d)}" ${d===selectedDate?'selected':''}>${esc(d)}</option>`).join('');
+  const allOption=`<option value="__ALL__" ${allMode?'selected':''}>كل التواريخ — عرض كل الطلبات</option>`;
+  const emptyText=dates.length
+    ? `لا توجد طلبات لهذه العميلة في تاريخ <b>${esc(selectedDate)}</b>. اختاري تاريخًا آخر من القائمة، أو «كل التواريخ» لعرض كل طلباتها.`
+    : `لا توجد تواريخ مسجلة لهذه العميلة. إذا كانت الطلبات موجودة في صفحة الطلبات، اختاري «كل التواريخ» أو راجعي صفحة الطلبات.`;
+
   invoiceBox.innerHTML=`<div class="invoice">
   <div class="no-print"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
-  <div class="hint no-print" style="margin-bottom:15px"><b>📅 تاريخ الفاتورة</b><div class="small">اختاري تاريخ قديم لعرض الفاتورة القديمة، أو اختاري تاريخ جديد بعد تسجيل الطلبات الجديدة.</div><div class="actions"><select id="invoiceDateSelect" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)">${dateOptions}</select><input id="invoiceNewDate" type="date" value="${esc(selectedDate)}" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)"></div></div>
+  <div class="hint no-print" style="margin-bottom:15px"><b>📅 تاريخ الفاتورة</b><div class="small">اختاري تاريخًا لعرض طلباته فقط، أو «كل التواريخ» لعرض كل طلبات العميلة. التاريخ الجديد يظل منفصلًا عن التواريخ القديمة.</div><div class="actions"><select id="invoiceDateSelect" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)"><option value="">اختاري التاريخ</option>${allOption}${dateOptions}</select><input id="invoiceNewDate" type="date" value="${allMode?'':esc(selectedDate)}" onchange="renderInvoice('${encodeURIComponent(sid)}','${encodeURIComponent(n)}',this.value)"></div></div>
   <div class="invoice-brand"><img src="icon-180.png" alt="Ordry"><div class="invoice-brand-title">Ordry by Advira</div></div>
   <div class="invoice-head"><div><h2 style="margin:0">${esc(s.name)}</h2><div class="small">${esc(s.phone||'')} ${s.info?'• '+esc(s.info):''}</div></div>
-  <div><b>فاتورة:</b> ${num}<br><b>التاريخ:</b> ${esc(selectedDate)}<br><b>العميلة:</b> ${esc(n)}</div></div>
-  ${lines.length?`<table class="invoice-items"><thead><tr><th>المنتج</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${lines.map(o=>{const same=o.prices.every(p=>p===o.prices[0]);const unit=same?`$${o.prices[0].toFixed(2)}`:'—';return `<tr><td>${esc(o.product)}</td><td>${o.qty}</td><td>${unit}</td><td>$${o.total.toFixed(2)}</td></tr>`}).join('')}</tbody></table>`:`<div class="hint" style="margin-top:18px">لا توجد طلبات لهذه العميلة في تاريخ <b>${esc(selectedDate)}</b>. سجلي الطلبات بهذا التاريخ من صفحة إدخال الطلبات، ثم ارجعي للفواتير.</div>`}
+  <div><b>فاتورة:</b> ${num}<br><b>التاريخ:</b> ${allMode?'كل التواريخ':esc(selectedDate)}<br><b>العميلة:</b> ${esc(n)}</div></div>
+  ${lines.length?`<table class="invoice-items"><thead><tr><th>المنتج</th><th>السعر</th><th>عدد القطع</th><th>إجمالي المنتج</th></tr></thead><tbody>${lines.map(o=>{const unique=[...new Set(o.prices.map(v=>Number(v).toFixed(2)))];const unit=unique.length===1?`$${Number(o.price).toFixed(2)}`:'متعدد';return `<tr><td>${esc(o.product)}</td><td>${unit}</td><td>${o.qty}</td><td>$${o.total.toFixed(2)}</td></tr>`}).join('')}</tbody></table>`:`<div class="hint" style="margin-top:18px">${emptyText}</div>`}
   <div class="invoice-total-box"><span class="invoice-total-label">الإجمالي</span><span class="invoice-total-value">$${subtotal.toFixed(2)}</span></div>
   <div class="invoice-footer">شكرًا لثقتك ❤️</div>
   </div>`;
