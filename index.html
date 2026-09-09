@@ -106,6 +106,10 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 .customer-suggestion:last-child{border-bottom:0}
 .customer-suggestion:hover{background:#fff8ed}
 </style>
+
+<style id="orders-product-count">
+.orders-product-count{display:inline-flex;align-items:center;gap:5px;margin-right:8px;padding:4px 9px;border-radius:999px;background:#f3e7d8;color:#6b4226;font-size:13px;font-weight:800}
+</style>
 </head>
 <body>
 <header><div class="brand"><div class="logo">O</div><div><h1>Ordria</h1><p>by Advira • Smart Orders. Simple Invoices.</p></div></div></header>
@@ -386,7 +390,7 @@ function renderOrders(){
       </div>
 
       <div class="orders-select-card orders-disabled" id="ordersProductCard">
-        <div class="orders-select-head"><span>📦 المنتج</span><span id="ordersProductValue">اختاري المنتج</span></div>
+        <div class="orders-select-head"><span>📦 المنتج</span><span id="ordersProductValue">اختاري المنتج</span><span id="ordersProductCount" class="orders-product-count" style="display:none"></span></div>
         <button type="button" class="orders-select-button" id="ordersProductButton">اختاري المتجر أولًا ▾</button>
         <div class="orders-options" id="ordersProductOptions"></div>
       </div>
@@ -433,6 +437,8 @@ function renderOrders(){
       customerCard.classList.add('orders-disabled');
       document.getElementById('ordersProductValue').textContent='اختاري المنتج';
       document.getElementById('ordersCustomerValue').textContent='اختاري المنتج';
+      const productCountEl=document.getElementById('ordersProductCount');
+      if(productCountEl){productCountEl.textContent='';productCountEl.style.display='none';}
       productButton.textContent='اضغطي لاختيار المنتج ▾';
       customerButton.textContent='اختاري المنتج أولًا ▾';
       customerOptions.innerHTML='';
@@ -444,6 +450,14 @@ function renderOrders(){
         pb.onclick=()=>{
           selectedProduct=pb.getAttribute('data-product');
           document.getElementById('ordersProductValue').textContent=selectedProduct;
+          const productTotal=rows.filter(o=>String(o.storeId||'')===selectedStoreId &&
+              String(o.product||o.productName||o.item||'').trim()===selectedProduct)
+            .reduce((sum,o)=>sum+(Number(o.qty||o.quantity||1)||1),0);
+          const productCountEl=document.getElementById('ordersProductCount');
+          if(productCountEl){
+            productCountEl.textContent='إجمالي القطع: '+productTotal;
+            productCountEl.style.display='inline-flex';
+          }
           productButton.textContent='✓ '+selectedProduct+' — تغيير ▾';
           productOptions.classList.remove('open');
 
