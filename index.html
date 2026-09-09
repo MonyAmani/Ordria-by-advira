@@ -71,6 +71,31 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 .orders-result-row:last-child{border-bottom:0}
 .orders-no-result{color:#777;padding:8px 4px}
 </style>
+
+<style id="orders-black-text">
+#orderList, #orderList * {
+  color: #111 !important;
+}
+#orderList .orders-select-button,
+#orderList .orders-option {
+  color: #111 !important;
+}
+#orderList .orders-no-result,
+#orderList .orders-customer-qty {
+  color: #333 !important;
+}
+</style>
+
+<style id="readability-brown-v1">
+:root{--text-brown:#6b4226;--text-dark:#4b2f1d}
+body{color:var(--text-brown)}
+label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-brown)}
+.orders-select-head{color:var(--text-dark)!important}
+.orders-select-button{color:var(--text-brown)!important}
+.orders-option{color:var(--text-brown)!important}
+.orders-result-row,.orders-result-row span,.orders-result-row strong{color:var(--text-brown)!important}
+.orders-no-result{color:#76543c!important}
+</style>
 </head>
 <body>
 <header><div class="brand"><div class="logo">O</div><div><h1>Ordria</h1><p>by Advira • Smart Orders. Simple Invoices.</p></div></div></header>
