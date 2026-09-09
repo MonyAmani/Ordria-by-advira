@@ -304,20 +304,25 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 function show(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active')}
 function renderStoreSelect(){let old=storeSelect.value;storeSelect.innerHTML=stores.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');if(stores.some(s=>s.id===old))storeSelect.value=old}
 function renderCatalogStoreSelect(){let old=catalogStore.value||storeSelect.value;catalogStore.innerHTML=stores.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');if(stores.some(s=>s.id===old))catalogStore.value=old}
-function renderProductSelect(){let old=productSelect.value,sid=storeSelect.value;let list=products.filter(p=>!p.storeId||p.storeId===sid);productSelect.innerHTML='<option value="">-- اختاري المنتج --</option>'+list.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} — $${Number(p.price).toFixed(2)}</option>`).join('');if(list.some(p=>p.id===old))productSelect.value=old}
+function renderProductSelect(){let old=productSelect.value,sid=storeSelect.value;let list=products.filter(p=>String(p.storeId||'')===String(sid));productSelect.innerHTML='<option value="">-- اختاري المنتج --</option>'+list.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} — $${Number(p.price).toFixed(2)}</option>`).join('');if(list.some(p=>p.id===old))productSelect.value=old}
 function fillPrice(){let p=products.find(x=>x.id===productSelect.value);if(p){price.value=p.price;newProduct.value=''}}
 function addProduct(){let sid=catalogStore.value,n=catalogName.value.trim(),p=Number(catalogPrice.value);if(!sid||!n||!p)return alert('اختاري المتجر واكتبي اسم المنتج والسعر.');products.push({id:'p_'+Date.now()+Math.random(),name:n,price:p,storeId:sid});catalogName.value='';catalogPrice.value='';persist();alert('تم حفظ المنتج ❤️')}
 function productStoreIds(p){
   if(p.storeId) return [p.storeId];
   const ids=[...new Set((orders||[]).filter(o=>String(o.product||'').trim()===String(p.name||'').trim() && o.storeId).map(o=>o.storeId))];
-  return ids.length?ids:(stores.length?[stores[0].id]:[]);
+  return ids;
 }
 function ensureProductStores(){
   let changed=false;
   products.forEach(p=>{
     if(!p.storeId){
-      const ids=productStoreIds(p);
-      if(ids.length){p.storeId=ids[0];changed=true;}
+      const matches=(orders||[]).filter(o=>String(o.product||'').trim()===String(p.name||'').trim() && o.storeId);
+      if(matches.length){
+        const counts={};
+        matches.forEach(o=>{counts[o.storeId]=(counts[o.storeId]||0)+(Number(o.qty||o.quantity||1)||1)});
+        const best=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+        if(best){p.storeId=best;changed=true;}
+      }
     }
   });
   if(changed){localStorage.setItem(PK,JSON.stringify(products));cloudSave().catch(()=>{});}
@@ -417,7 +422,7 @@ function addBatch(){
       orderDate=(document.getElementById('orderDate')?.value)||new Date().toISOString().slice(0,10);
   if(!sid||!pname||!pr||!parsed.length)return alert('اختاري المتجر واكتبي/اختاري المنتج والسعر والأسماء.');
   parsed.forEach(item=>orders.push({id:'o_'+Date.now()+Math.random(),storeId:sid,name:item.name,product:pname,price:pr,qty:item.qty,orderDate,createdAt:new Date().toISOString()}));
-  if(!p&&!products.some(x=>x.name===pname&&Number(x.price)===pr))products.push({id:'p_'+Date.now()+Math.random(),name:pname,price:pr,storeId:sid});
+  if(!p&&!products.some(x=>String(x.storeId)===String(sid)&&String(x.name).trim()===String(pname).trim()&&Number(x.price)===pr))products.push({id:'p_'+Date.now()+Math.random(),name:pname,price:pr,storeId:sid});
   persist();clearForm(true);
   const pieces=parsed.reduce((sum,x)=>sum+x.qty,0);
   alert('تم حفظ '+pieces+' قطعة لـ '+parsed.length+' عميلة ❤️');
