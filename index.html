@@ -110,6 +110,15 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 .orders-no-result{color:#76543c!important}
 </style>
 
+<style id="clothing-customer-suggestions">
+.variant-customer-wrap{position:relative;min-width:0;flex:1}
+.variant-customer-wrap input{width:100%}
+.variant-customer-suggestions{display:none;position:absolute;z-index:50;right:0;left:0;top:100%;background:#fff;border:1px solid #c9a66b;border-radius:0 0 10px 10px;box-shadow:0 8px 20px rgba(0,0,0,.12);max-height:190px;overflow:auto}
+.variant-customer-suggestions.open{display:block}
+.variant-customer-suggestion{display:block;width:100%;border:0;background:#fff;text-align:right;padding:10px 12px;font-size:14px;color:#5b3822;cursor:pointer;border-bottom:1px solid #eee}
+.variant-customer-suggestion:last-child{border-bottom:0}
+.variant-customer-suggestion:hover{background:#fff8ed}
+</style>
 <style id="customer-suggestions-v2">
 .customer-names-wrap{position:relative}
 .customer-names-wrap textarea{width:100%;position:relative;z-index:1}
@@ -509,6 +518,9 @@ function getSavedCustomerNames(){
   const set=new Set();
   const orderList=Array.isArray(orders)?orders:Object.values(orders||{});
   const customerList=Array.isArray(customers)?customers:Object.values(customers||{});
+  if(customers && typeof customers==='object' && !Array.isArray(customers)){
+    Object.keys(customers).forEach(k=>{const n=String(k||'').trim();if(n)set.add(n);});
+  }
   orderList.forEach(o=>{
     const n=String(o?.name||o?.customerName||o?.customer||'').trim();
     if(n)set.add(n);
@@ -622,15 +634,43 @@ function setOrderEntryType(type){
   if(orderEntryType==='clothes' && !document.querySelector('#variantRows .variant-row')) addVariantRow();
 }
 function variantSelectOptions(arr,placeholder){return `<option value="">${placeholder}</option>`+arr.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');}
+function setupVariantCustomerSuggestions(row){
+  const input=row?.querySelector('.variant-customer');
+  const box=row?.querySelector('.variant-customer-suggestions');
+  if(!input||!box||input.dataset.suggestionsReady)return;
+  input.dataset.suggestionsReady='1';
+  function close(){box.classList.remove('open');box.innerHTML='';}
+  function render(){
+    const q=(input.value||'').trim().toLowerCase();
+    if(!q){close();return;}
+    const all=getSavedCustomerNames();
+    const starts=all.filter(n=>n.toLowerCase().startsWith(q));
+    const contains=all.filter(n=>!n.toLowerCase().startsWith(q)&&n.toLowerCase().includes(q));
+    const matches=starts.concat(contains).slice(0,10);
+    if(!matches.length){close();return;}
+    box.innerHTML=matches.map(n=>`<button type="button" class="variant-customer-suggestion" data-name="${esc(n)}">👤 ${esc(n)}</button>`).join('');
+    box.classList.add('open');
+    box.querySelectorAll('[data-name]').forEach(btn=>btn.addEventListener('mousedown',function(e){
+      e.preventDefault();
+      input.value=btn.getAttribute('data-name')||'';
+      close();
+      input.focus();
+    }));
+  }
+  input.addEventListener('input',render);
+  input.addEventListener('focus',render);
+  input.addEventListener('blur',()=>setTimeout(close,120));
+}
 function addVariantRow(data={}){
   const box=document.getElementById('variantRows'); if(!box)return;
   const row=document.createElement('div'); row.className='variant-row';
-  row.innerHTML=`<input class="variant-customer" autocomplete="off" placeholder="اسم العميلة" value="${esc(data.name||'')}">
+  row.innerHTML=`<div class="variant-customer-wrap"><input class="variant-customer" autocomplete="off" placeholder="اسم العميلة" value="${esc(data.name||'')}"><div class="variant-customer-suggestions"></div></div>
     <select class="variant-color">${variantSelectOptions(CLOTHING_COLORS,'اللون')}${data.color?`<option value="${esc(data.color)}" selected>${esc(data.color)}</option>`:''}</select>
     <select class="variant-size">${variantSelectOptions(CLOTHING_SIZES,'المقاس')}${data.size?`<option value="${esc(data.size)}" selected>${esc(data.size)}</option>`:''}</select>
     <input class="variant-qty" type="number" min="1" step="1" value="${Number(data.qty)||1}" aria-label="العدد">
     <button type="button" class="variant-remove" onclick="this.closest('.variant-row').remove()">✕</button>`;
   box.appendChild(row);
+  setupVariantCustomerSuggestions(row);
 }
 function getClothingParsed(){
   return [...document.querySelectorAll('#variantRows .variant-row')].map(r=>{
