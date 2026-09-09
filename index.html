@@ -143,7 +143,8 @@ label,.label,.small,.orders-selector-v2,.orders-selector-v2 *{color:var(--text-b
 </style>
 
 <style id="invoice-archive-ui">
-.invoice-hub{margin-bottom:18px}.invoice-hub-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.invoice-hub-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}.invoice-hub-card h3{margin:0 0 8px}.invoice-month-pill{display:inline-block;padding:5px 10px;border-radius:999px;background:#f3e7d8;color:#6b4226;font-weight:800;font-size:12px}.invoice-month-pill.archived{background:#eee;color:#666}.invoice-customer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-top:9px;background:#fff}.invoice-customer-row .meta{color:var(--muted);font-size:12px;margin-top:3px}.invoice-hub-empty{padding:18px;text-align:center;color:var(--muted)}
+.invoice-hub{margin-bottom:18px}.invoice-hub-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.invoice-hub-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}.invoice-hub-card h3{margin:0 0 8px}.invoice-month-pill{display:inline-block;padding:5px 10px;border-radius:999px;background:#f3e7d8;color:#6b4226;font-weight:800;font-size:12px}.invoice-month-pill.archived{background:#eee;color:#666}.invoice-summary-counts{display:flex;flex-direction:column;gap:3px;margin-top:6px}.invoice-summary-counts span{display:block}.invoice-summary-counts b{font-size:15px;margin-left:3px}
+.invoice-customer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-top:9px;background:#fff}.invoice-customer-row .meta{color:var(--muted);font-size:12px;margin-top:3px}.invoice-hub-empty{padding:18px;text-align:center;color:var(--muted)}
 @media(max-width:760px){.invoice-hub-grid{grid-template-columns:1fr}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script></head>
@@ -1131,6 +1132,37 @@ function archiveInvoiceMonth(sid,m){
   else {if(!confirm(`سيتم أرشفة ${monthLabel(m)} لهذا المتجر فقط. الطلبات والفواتير لن تُحذف، وأسماء العميلات ستظل محفوظة. متابعة؟`))return;a[key]={archivedAt:new Date().toISOString()};}
   saveInvoiceArchives(a);renderInvoiceHub();
 }
+function deleteInvoiceDate(sid,date){
+  sid=String(sid||'').trim();
+  date=normalizeOrderDate(date)||'';
+  if(!sid||!date)return;
+  const st=stores.find(s=>String(s.id)===sid);
+  const storeName=st?.name||'المتجر';
+  const archived=isMonthArchived(sid,monthKey(date));
+  const count=orders.filter(o=>{
+    const ost=findStoreForOrder(o);
+    return ost&&String(ost.id)===sid&&orderEffectiveDate(o)===date;
+  }).length;
+  if(!count){alert('لا توجد طلبات محفوظة لهذا التاريخ.');return;}
+  const msg=archived
+    ? `⚠️ التاريخ ${invoiceDateLabel(date)} مؤرشف ومدفوع في ${storeName}.\nسيتم حذفه من الأرشيف مع كل فواتير وطلبات هذا التاريخ نهائيًا.\nأسماء العميلات ستظل محفوظة.\n\nهل تريدين المتابعة؟`
+    : `⚠️ سيتم حذف تاريخ ${invoiceDateLabel(date)} من ${storeName} مع كل فواتيره وطلباته نهائيًا.\nأسماء العميلات ستظل محفوظة.\n\nهل تريدين المتابعة؟`;
+  if(!confirm(msg))return;
+  orders=(orders||[]).filter(o=>{
+    const ost=findStoreForOrder(o);
+    return !(ost&&String(ost.id)===sid&&orderEffectiveDate(o)===date);
+  });
+  const mk=monthKey(date), key=`${sid}||${mk}`;
+  const remainingInMonth=orders.some(o=>{
+    const ost=findStoreForOrder(o);
+    return ost&&String(ost.id)===sid&&monthKey(orderEffectiveDate(o))===mk;
+  });
+  const a=invoiceArchives();
+  if(a[key] && !remainingInMonth) delete a[key];
+  localStorage.setItem(INVOICE_ARCHIVE_KEY,JSON.stringify(a));
+  persistQuiet();
+  renderInvoiceHub();
+}
 function invoiceHubOpenCustomer(sidEnc,nameEnc,monthKey){
   try{
     const sid=decodeURIComponent(String(sidEnc||''));
@@ -1177,7 +1209,7 @@ function renderInvoiceHub(){
     <div class="invoice-hub-card"><h3>📂 القسم</h3><select id="invoiceHubMode" onchange="renderInvoiceHub()"><option value="current" ${mode==='current'?'selected':''}>🧾 الفواتير الحالية</option><option value="archive" ${mode==='archive'?'selected':''}>📦 الأرشيف</option></select><div class="small" style="margin-top:7px">الأرشيف خاص بهذا المتجر فقط ولا يحذف أي بيانات.</div></div>
     <div class="invoice-hub-card"><h3>📅 تاريخ الفاتورة</h3><select id="invoiceHubDate" onchange="renderInvoiceHub()"><option value="">-- اختاري تاريخ الفاتورة --</option>${listDates.map(d=>`<option value="${esc(d)}" ${d===selectedDate?'selected':''}>${esc(invoiceDateLabel(d))}</option>`).join('')}</select>${selectedDate?`<div style="margin-top:9px"><span class="invoice-month-pill ${isMonthArchived(sid,selectedMonth)?'archived':''}">${isMonthArchived(sid,selectedMonth)?'📦 مؤرشف':'🟢 حالي'}</span></div>`:''}</div>
   </div>
-  ${selectedDate?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(invoiceDateLabel(selectedDate))}</h3><div class="small">${custs.length} عميلة • ${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)} قطعة</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="gold" onclick="saveAllCurrentInvoicesAsImages('${esc(sid)}','${esc(selectedDate)}')">📸 حفظ كل الفواتير كصور</button><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(selectedMonth)}')">${isMonthArchived(sid,selectedMonth)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button></div></div>
+  ${selectedDate?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(stores.find(s=>String(s.id)===String(sid))?.name||'المتجر')} — ${esc(invoiceDateLabel(selectedDate))}</h3><div class="small invoice-summary-counts"><span><b>${custs.length}</b> عميلة</span><span><b>${data.reduce((n,o)=>n+(Number(o.qty||o.quantity||1)||1),0)}</b> قطعة</span></div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="gold" onclick="saveAllCurrentInvoicesAsImages('${esc(sid)}','${esc(selectedDate)}')">📸 حفظ كل الفواتير كصور</button><button class="secondary" onclick="archiveInvoiceMonth('${esc(sid)}','${esc(selectedMonth)}')">${isMonthArchived(sid,selectedMonth)?'↩️ فتح الشهر':'📦 أرشفة الشهر'}</button><button class="danger" onclick="deleteInvoiceDate('${esc(sid)}','${esc(selectedDate)}')">${isMonthArchived(sid,selectedMonth)?'🗑️ حذف التاريخ من الأرشيف':'🗑️ حذف التاريخ وفواتيره'}</button></div></div>
   <div style="margin-top:10px">${custs.length?custs.map(c=>`<div class="invoice-customer-row"><div><b>${esc(c.name)}</b><div class="meta">${c.pieces} قطعة • $${c.total.toFixed(2)}</div></div><button class="gold" data-sid="${esc(String(sid))}" data-name="${esc(c.name)}" data-date="${esc(selectedDate)}" onclick="openInvoiceFromHubButton(this)">🧾 فتح الفاتورة</button></div>`).join(''):'<div class="invoice-hub-empty">لا توجد فواتير في هذا التاريخ.</div>'}</div>`:'<div class="invoice-hub-empty">اختاري متجرًا وتاريخ الفاتورة لعرض الفواتير.</div>'}`;
 }
 async function saveAllCurrentInvoicesAsImages(sid,date){
